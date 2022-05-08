@@ -1,0 +1,11 @@
+serverConfig:
+  tlsEnabled: true
+  port: "4000"
+  certPath: "/cert/service.pem"
+  keyPath: "/cert/service.key"
+postgres:
+  username: "postgres"
+  password: "postgres"
+  endpoint: "postgres"
+  port: "5432"
+  dBName: "grpctodo"

@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  server:
+    build: ./server
+    working_dir: /go/src/github.com/MohammadBnei/gRPC-web-tuto/server
+    platform: linux/amd64
+    ports:
+      - 4000:4000
+    volumes:
+      - ./server:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server
+      - ./cert:/cert
+    stdin_open: true
+  
+  postgres:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: grpctodo
