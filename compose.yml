@@ -1,15 +1,24 @@
 version: '3.9'
 
+volumes:
+  caddy_data:
+  caddy_config:
+
 services:
+
+
   server:
     build: ./server
     working_dir: /go/src/github.com/MohammadBnei/gRPC-web-tuto/server
     platform: linux/amd64
+    environment:
+      - GODEBUG=http2debug=1
     ports:
       - 4000:4000
     volumes:
       - ./server:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server
-      - ./cert:/cert
+      - ./dev/certs:/cert
+    command: gowatch
     stdin_open: true
   
   postgres:
@@ -20,3 +29,18 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       POSTGRES_DB: grpctodo
+
+  hello_world:
+    image: hello-world
+
+  envoy:
+    image: envoyproxy/envoy-dev
+    volumes:
+      - ./dev/envoy.yml:/etc/envoy/envoy.yml
+      - ./dev/certs/grpctodo.dev-key.pem:/etc/certs/key.pem
+      - ./dev/certs/grpctodo.dev.pem:/etc/certs/cert.pem
+    ports: 
+      - 8081:8081
+      - 9901:9901
+    stdin_open: true
+    command: envoy -c /etc/envoy/envoy.yml -l trace
