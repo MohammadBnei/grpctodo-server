@@ -80,6 +80,10 @@ func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*tod
 
 	var item domain.Item
 
+	if r.Id == "" {
+		return blankResponse, status.Error(codes.Internal, "no id provided")
+	}
+
 	if result := s.DB.First(&item, r.Id); result.Error != nil {
 		fmt.Println(result.Error)
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
@@ -123,6 +127,10 @@ func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todo
 
 	blankResponse := &todoPB.GeneralResponse{}
 
+	if r.Id == "" {
+		return blankResponse, status.Error(codes.Internal, "no id provided")
+	}
+	
 	var item domain.Item
 
 	if result := s.DB.First(&item, r.Id); result.Error != nil {

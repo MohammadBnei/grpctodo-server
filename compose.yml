@@ -17,6 +17,7 @@ services:
       - 4000:4000
     volumes:
       - ./server:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server
+      - ./proto/go/todoPB:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server/todoPB
       - ./dev/certs:/cert
     command: gowatch
     stdin_open: true
@@ -30,11 +31,23 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: grpctodo
 
-  hello_world:
-    image: hello-world
+  grpc-file:
+    build: 
+      dockerfile: DockerfileGrpc
+    volumes:
+      - ./proto:/gen/proto
+      - ./proto/go:/out/go
+      - ./proto/js:/out/js
+      - ./Makefile:/Makefile
+    # command: bash -c "protoc -I /gen/proto \
+    #               --go_out=plugins=grpc,paths=source_relative:/go \
+    #               --js_out=import_style=commonjs,binary:/js \
+    #               --grpc-web_out=import_style=typescript,mode=grpcweb:/js \
+    #               /gen/proto/todo.proto"
+    stdin_open: true
 
   envoy:
-    image: envoyproxy/envoy-dev
+    image: envoyproxy/envoy:v1.22.0
     volumes:
       - ./dev/envoy.yml:/etc/envoy/envoy.yml
       - ./dev/certs/grpctodo.dev-key.pem:/etc/certs/key.pem
