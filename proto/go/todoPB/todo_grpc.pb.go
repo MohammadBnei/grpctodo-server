@@ -8,10 +8,10 @@ package todoPB
 
 import (
 	context "context"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TodoServiceClient interface {
-	GetItems(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error)
+	GetItems(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error)
 	GetItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
 	CreateItem(ctx context.Context, in *CreateItemRequest, opts ...grpc.CallOption) (*Item, error)
 	CloseItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GeneralResponse, error)
@@ -38,7 +38,7 @@ func NewTodoServiceClient(cc grpc.ClientConnInterface) TodoServiceClient {
 	return &todoServiceClient{cc}
 }
 
-func (c *todoServiceClient) GetItems(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error) {
+func (c *todoServiceClient) GetItems(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error) {
 	out := new(GetItemsResponse)
 	err := c.cc.Invoke(ctx, "/server.TodoService/GetItems", in, out, opts...)
 	if err != nil {
@@ -87,7 +87,7 @@ func (c *todoServiceClient) DeleteItem(ctx context.Context, in *GetItemRequest, 
 // All implementations must embed UnimplementedTodoServiceServer
 // for forward compatibility
 type TodoServiceServer interface {
-	GetItems(context.Context, *emptypb.Empty) (*GetItemsResponse, error)
+	GetItems(context.Context, *empty.Empty) (*GetItemsResponse, error)
 	GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
 	CreateItem(context.Context, *CreateItemRequest) (*Item, error)
 	CloseItem(context.Context, *GetItemRequest) (*GeneralResponse, error)
@@ -99,7 +99,7 @@ type TodoServiceServer interface {
 type UnimplementedTodoServiceServer struct {
 }
 
-func (UnimplementedTodoServiceServer) GetItems(context.Context, *emptypb.Empty) (*GetItemsResponse, error) {
+func (UnimplementedTodoServiceServer) GetItems(context.Context, *empty.Empty) (*GetItemsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetItems not implemented")
 }
 func (UnimplementedTodoServiceServer) GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error) {
@@ -128,7 +128,7 @@ func RegisterTodoServiceServer(s grpc.ServiceRegistrar, srv TodoServiceServer) {
 }
 
 func _TodoService_GetItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func _TodoService_GetItems_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/server.TodoService/GetItems",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TodoServiceServer).GetItems(ctx, req.(*emptypb.Empty))
+		return srv.(TodoServiceServer).GetItems(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

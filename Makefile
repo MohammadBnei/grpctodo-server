@@ -1,10 +1,13 @@
 
 FLAGS=-I /gen/proto --proto_path=/gen/proto todo.proto
 
-protoc:
+gen:
+	docker-compose exec -t grpc-gen bash -c "make go && make js" 
+
+golang:
 	protoc $(FLAGS) \
 		--go-grpc_out /out/go --go_out /out/go 
-		
+				
 	protoc-go-inject-tag -input="/out/go/**/*.pb.go"
 
 	

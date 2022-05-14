@@ -31,20 +31,17 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: grpctodo
 
-  grpc-file:
+  grpc-gen:
     build: 
-      dockerfile: DockerfileGrpc
+      dockerfile: ./proto/DockerfileGrpc
+      context: ./
     volumes:
       - ./proto:/gen/proto
       - ./proto/go:/out/go
       - ./proto/js:/out/js
       - ./Makefile:/Makefile
-    # command: bash -c "protoc -I /gen/proto \
-    #               --go_out=plugins=grpc,paths=source_relative:/go \
-    #               --js_out=import_style=commonjs,binary:/js \
-    #               --grpc-web_out=import_style=typescript,mode=grpcweb:/js \
-    #               /gen/proto/todo.proto"
-    stdin_open: true
+    command: bash -c "make golang && make js"
+    working_dir: /
 
   envoy:
     image: envoyproxy/envoy:v1.22.0
