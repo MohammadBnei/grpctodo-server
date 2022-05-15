@@ -3,11 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/MohammadBnei/gRPC-web-tuto/server/domain"
 	"github.com/MohammadBnei/gRPC-web-tuto/server/todoPB"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"gorm.io/gorm"
@@ -24,6 +26,15 @@ var blankItem = &todoPB.GetItemResponse{}
 
 func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {
 	fmt.Println("GetItems() called")
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	authMd := md.Get("authorization")
+
+	var token string
+	if len(authMd) > 0 {
+		token = authMd[0]
+	}
+	log.Println(token, ok)
 
 	toRespItems := []*domain.Item{}
 

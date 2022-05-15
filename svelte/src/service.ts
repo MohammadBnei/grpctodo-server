@@ -29,20 +29,27 @@ export const itemWrapper = ({ title, description, closed }: ItemDto) => {
 
 export const getItems = async () => {
   const req = new GetItemsRequest();
-  const response = await todoServer.getItems(req, {});
+  const response = await todoServer.getItems(req, {
+    'Authorization': 'Bearer potatoes'
+  });
 
   itemStore.set(response.getItemsList().map((item) => itemUnwrapper(item)))
 };
 
 
 export const createItem = async (newItem: ItemDto) => {
-  const req = new CreateItemRequest();
-  const itemDto = itemWrapper(newItem)
-  req.setItem(itemDto)
+  try {
+    const req = new CreateItemRequest();
+    const itemDto = itemWrapper(newItem)
+    req.setItem(itemDto)
 
-  const response = await todoServer.createItem(req, {});
+    const response = await todoServer.createItem(req, {});
 
-  itemStore.addItem(itemUnwrapper(response.getItem()))
+    itemStore.addItem(itemUnwrapper(response.getItem()))
+  }
+  catch (e) {
+    console.log({ e, message: e.message });
+  }
 };
 
 export const deleteItem = async (id: string) => {
