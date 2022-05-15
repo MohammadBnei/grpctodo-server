@@ -27,6 +27,26 @@ var app = (function () {
     function is_empty(obj) {
         return Object.keys(obj).length === 0;
     }
+    function validate_store(store, name) {
+        if (store != null && typeof store.subscribe !== 'function') {
+            throw new Error(`'${name}' is not a store with a 'subscribe' method`);
+        }
+    }
+    function subscribe(store, ...callbacks) {
+        if (store == null) {
+            return noop;
+        }
+        const unsub = store.subscribe(...callbacks);
+        return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
+    }
+    function get_store_value(store) {
+        let value;
+        subscribe(store, _ => value = _)();
+        return value;
+    }
+    function component_subscribe(component, store, callback) {
+        component.$$.on_destroy.push(subscribe(store, callback));
+    }
     function append(target, node) {
         target.appendChild(node);
     }
@@ -45,6 +65,9 @@ var app = (function () {
     function space() {
         return text(' ');
     }
+    function empty() {
+        return text('');
+    }
     function listen(node, event, handler, options) {
         node.addEventListener(event, handler, options);
         return () => node.removeEventListener(event, handler, options);
@@ -57,6 +80,12 @@ var app = (function () {
     }
     function children(element) {
         return Array.from(element.childNodes);
+    }
+    function set_input_value(input, value) {
+        input.value = value == null ? '' : value;
+    }
+    function toggle_class(element, name, toggle) {
+        element.classList[toggle ? 'add' : 'remove'](name);
     }
     function custom_event(type, detail, { bubbles = false, cancelable = false } = {}) {
         const e = document.createEvent('CustomEvent');
@@ -160,6 +189,19 @@ var app = (function () {
     }
     const outroing = new Set();
     let outros;
+    function group_outros() {
+        outros = {
+            r: 0,
+            c: [],
+            p: outros // parent group
+        };
+    }
+    function check_outros() {
+        if (!outros.r) {
+            run_all(outros.c);
+        }
+        outros = outros.p;
+    }
     function transition_in(block, local) {
         if (block && block.i) {
             outroing.delete(block);
@@ -182,12 +224,96 @@ var app = (function () {
             block.o(local);
         }
     }
-
-    const globals = (typeof window !== 'undefined'
-        ? window
-        : typeof globalThis !== 'undefined'
-            ? globalThis
-            : global);
+    function outro_and_destroy_block(block, lookup) {
+        transition_out(block, 1, 1, () => {
+            lookup.delete(block.key);
+        });
+    }
+    function update_keyed_each(old_blocks, dirty, get_key, dynamic, ctx, list, lookup, node, destroy, create_each_block, next, get_context) {
+        let o = old_blocks.length;
+        let n = list.length;
+        let i = o;
+        const old_indexes = {};
+        while (i--)
+            old_indexes[old_blocks[i].key] = i;
+        const new_blocks = [];
+        const new_lookup = new Map();
+        const deltas = new Map();
+        i = n;
+        while (i--) {
+            const child_ctx = get_context(ctx, list, i);
+            const key = get_key(child_ctx);
+            let block = lookup.get(key);
+            if (!block) {
+                block = create_each_block(key, child_ctx);
+                block.c();
+            }
+            else if (dynamic) {
+                block.p(child_ctx, dirty);
+            }
+            new_lookup.set(key, new_blocks[i] = block);
+            if (key in old_indexes)
+                deltas.set(key, Math.abs(i - old_indexes[key]));
+        }
+        const will_move = new Set();
+        const did_move = new Set();
+        function insert(block) {
+            transition_in(block, 1);
+            block.m(node, next);
+            lookup.set(block.key, block);
+            next = block.first;
+            n--;
+        }
+        while (o && n) {
+            const new_block = new_blocks[n - 1];
+            const old_block = old_blocks[o - 1];
+            const new_key = new_block.key;
+            const old_key = old_block.key;
+            if (new_block === old_block) {
+                // do nothing
+                next = new_block.first;
+                o--;
+                n--;
+            }
+            else if (!new_lookup.has(old_key)) {
+                // remove old block
+                destroy(old_block, lookup);
+                o--;
+            }
+            else if (!lookup.has(new_key) || will_move.has(new_key)) {
+                insert(new_block);
+            }
+            else if (did_move.has(old_key)) {
+                o--;
+            }
+            else if (deltas.get(new_key) > deltas.get(old_key)) {
+                did_move.add(new_key);
+                insert(new_block);
+            }
+            else {
+                will_move.add(old_key);
+                o--;
+            }
+        }
+        while (o--) {
+            const old_block = old_blocks[o];
+            if (!new_lookup.has(old_block.key))
+                destroy(old_block, lookup);
+        }
+        while (n)
+            insert(new_blocks[n - 1]);
+        return new_blocks;
+    }
+    function validate_each_keys(ctx, list, get_context, get_key) {
+        const keys = new Set();
+        for (let i = 0; i < list.length; i++) {
+            const key = get_key(get_context(ctx, list, i));
+            if (keys.has(key)) {
+                throw new Error('Cannot have duplicate keys in a keyed each');
+            }
+            keys.add(key);
+        }
+    }
     function create_component(block) {
         block && block.c();
     }
@@ -359,6 +485,15 @@ var app = (function () {
         dispatch_dev('SvelteDOMSetData', { node: text, data });
         text.data = data;
     }
+    function validate_each_argument(arg) {
+        if (typeof arg !== 'string' && !(arg && typeof arg === 'object' && 'length' in arg)) {
+            let msg = '{#each} only iterates over array-like objects.';
+            if (typeof Symbol === 'function' && arg && Symbol.iterator in arg) {
+                msg += ' You can use a spread to convert this iterable into an array.';
+            }
+            throw new Error(msg);
+        }
+    }
     function validate_slots(name, slot, keys) {
         for (const slot_key of Object.keys(slot)) {
             if (!~keys.indexOf(slot_key)) {
@@ -384,103 +519,6 @@ var app = (function () {
         }
         $capture_state() { }
         $inject_state() { }
-    }
-
-    /* src/lib/Counter.svelte generated by Svelte v3.48.0 */
-
-    const file$1 = "src/lib/Counter.svelte";
-
-    function create_fragment$1(ctx) {
-    	let button;
-    	let t0;
-    	let t1;
-    	let mounted;
-    	let dispose;
-
-    	const block = {
-    		c: function create() {
-    			button = element("button");
-    			t0 = text("Clicks: ");
-    			t1 = text(/*count*/ ctx[0]);
-    			attr_dev(button, "class", "svelte-1c7643s");
-    			add_location(button, file$1, 7, 0, 83);
-    		},
-    		l: function claim(nodes) {
-    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
-    		},
-    		m: function mount(target, anchor) {
-    			insert_dev(target, button, anchor);
-    			append_dev(button, t0);
-    			append_dev(button, t1);
-
-    			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*increment*/ ctx[1], false, false, false);
-    				mounted = true;
-    			}
-    		},
-    		p: function update(ctx, [dirty]) {
-    			if (dirty & /*count*/ 1) set_data_dev(t1, /*count*/ ctx[0]);
-    		},
-    		i: noop,
-    		o: noop,
-    		d: function destroy(detaching) {
-    			if (detaching) detach_dev(button);
-    			mounted = false;
-    			dispose();
-    		}
-    	};
-
-    	dispatch_dev("SvelteRegisterBlock", {
-    		block,
-    		id: create_fragment$1.name,
-    		type: "component",
-    		source: "",
-    		ctx
-    	});
-
-    	return block;
-    }
-
-    function instance$1($$self, $$props, $$invalidate) {
-    	let { $$slots: slots = {}, $$scope } = $$props;
-    	validate_slots('Counter', slots, []);
-    	let count = 0;
-
-    	const increment = () => {
-    		$$invalidate(0, count += 1);
-    	};
-
-    	const writable_props = [];
-
-    	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Counter> was created with unknown prop '${key}'`);
-    	});
-
-    	$$self.$capture_state = () => ({ count, increment });
-
-    	$$self.$inject_state = $$props => {
-    		if ('count' in $$props) $$invalidate(0, count = $$props.count);
-    	};
-
-    	if ($$props && "$$inject" in $$props) {
-    		$$self.$inject_state($$props.$$inject);
-    	}
-
-    	return [count, increment];
-    }
-
-    class Counter extends SvelteComponentDev {
-    	constructor(options) {
-    		super(options);
-    		init(this, options, instance$1, create_fragment$1, safe_not_equal, {});
-
-    		dispatch_dev("SvelteRegisterComponent", {
-    			component: this,
-    			tagName: "Counter",
-    			options,
-    			id: create_fragment$1.name
-    		});
-    	}
     }
 
     var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -565,17 +603,8 @@ var app = (function () {
     0>h&&(h=f.length),e=f.indexOf("?"),0>e||e>h?(e=h,k=""):k=f.substring(e+1,h),f=[f.substr(0,e),k,f.substr(h)],h=f[1],f[1]=m?h?h+"&"+m:m:h,f=f[0]+(f[1]?"?"+f[1]:"")+f[2];}else f.a("$httpHeaders",h);}b=d.getRequestSerializeFn()(b.getRequestMessage());d=b.length;m=[0,0,0,0];h=new Uint8Array(5+d);for(e=3;0<=e;e--)m[e]=d%256,d>>>=8;h.set(new Uint8Array(m),1);h.set(b,5);b=h;if("text"==a.a){a=b;var p;void 0===p&&(p=0);Ic();p=Ec[p];b=Array(Math.floor(a.length/3));d=p[64]||"";for(m=h=0;h<a.length-2;h+=3){l=a[h];
     var q=a[h+1];k=a[h+2];e=p[l>>2];l=p[(l&3)<<4|q>>4];q=p[(q&15)<<2|k>>6];k=p[k&63];b[m++]=e+l+q+k;}e=0;k=d;switch(a.length-h){case 2:e=a[h+1],k=p[(e&15)<<2]||d;case 1:a=a[h],b[m]=p[a>>2]+p[(a&3)<<4|e>>4]+k+d;}b=b.join("");}else "binary"==a.a&&(c.m="arraybuffer");uc(c,f,b);return g}
     function Qc(a,b,c){var d=!1,f=null,g=!1;a.on("data",function(e){d=!0;f=e;});a.on("error",function(e){0==e.code||g||(g=!0,b(e,null));});a.on("status",function(e){0==e.code||g?c&&b(null,null,e):(g=!0,b({code:e.code,message:e.details,metadata:e.metadata},null));});if(c)a.on("metadata",function(e){b(null,null,null,e);});a.on("end",function(){g||(d?b(null,f):b({code:2,message:"Incomplete response"}));c&&b(null,null);});}
-    function Oc(a,b){var c=a;b.forEach(function(d){var f=c;c=function(g){return d.intercept(g,f)};});return c}Z.prototype.serverStreaming=Z.prototype.Y;Z.prototype.unaryCall=Z.prototype.unaryCall;Z.prototype.thenableCall=Z.prototype.S;Z.prototype.rpcCall=Z.prototype.X;var CallOptions=xa;var MethodDescriptor=E;var GrpcWebClientBase=Z;var RpcError=F;var StatusCode={OK:0,CANCELLED:1,UNKNOWN:2,INVALID_ARGUMENT:3,DEADLINE_EXCEEDED:4,NOT_FOUND:5,ALREADY_EXISTS:6,PERMISSION_DENIED:7,UNAUTHENTICATED:16,RESOURCE_EXHAUSTED:8,FAILED_PRECONDITION:9,ABORTED:10,OUT_OF_RANGE:11,UNIMPLEMENTED:12,INTERNAL:13,UNAVAILABLE:14,DATA_LOSS:15};var MethodType={UNARY:"unary",SERVER_STREAMING:"server_streaming",BIDI_STREAMING:"bidi_streaming"};
+    function Oc(a,b){var c=a;b.forEach(function(d){var f=c;c=function(g){return d.intercept(g,f)};});return c}Z.prototype.serverStreaming=Z.prototype.Y;Z.prototype.unaryCall=Z.prototype.unaryCall;Z.prototype.thenableCall=Z.prototype.S;Z.prototype.rpcCall=Z.prototype.X;var MethodDescriptor=E;var GrpcWebClientBase=Z;var MethodType={UNARY:"unary",SERVER_STREAMING:"server_streaming",BIDI_STREAMING:"bidi_streaming"};
     Kb="undefined"!==typeof globalThis&&globalThis||self;
-
-    var grpcWeb = {
-    	CallOptions: CallOptions,
-    	MethodDescriptor: MethodDescriptor,
-    	GrpcWebClientBase: GrpcWebClientBase,
-    	RpcError: RpcError,
-    	StatusCode: StatusCode,
-    	MethodType: MethodType
-    };
 
     var googleProtobuf = createCommonjsModule(function (module, exports) {
     var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(a,b,c){a instanceof String&&(a=String(a));for(var d=a.length,e=0;e<d;e++){var f=a[e];if(b.call(c,f,e,a))return {i:e,v:f}}return {i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.SIMPLE_FROUND_POLYFILL=!1;
@@ -2466,486 +2495,1095 @@ var app = (function () {
      * @enhanceable
      * @public
      */
+    class TodoServiceClient {
+        constructor(hostname, credentials, options) {
+            this.methodDescriptorGetItems = new MethodDescriptor('/server.TodoService/GetItems', MethodType.UNARY, empty_pb.Empty, todo_pb.GetItemsResponse, (request) => {
+                return request.serializeBinary();
+            }, todo_pb.GetItemsResponse.deserializeBinary);
+            this.methodDescriptorGetItem = new MethodDescriptor('/server.TodoService/GetItem', MethodType.UNARY, todo_pb.GetItemRequest, todo_pb.GetItemResponse, (request) => {
+                return request.serializeBinary();
+            }, todo_pb.GetItemResponse.deserializeBinary);
+            this.methodDescriptorCreateItem = new MethodDescriptor('/server.TodoService/CreateItem', MethodType.UNARY, todo_pb.CreateItemRequest, todo_pb.GetItemResponse, (request) => {
+                return request.serializeBinary();
+            }, todo_pb.GetItemResponse.deserializeBinary);
+            this.methodDescriptorCloseItem = new MethodDescriptor('/server.TodoService/CloseItem', MethodType.UNARY, todo_pb.GetItemRequest, todo_pb.GetItemResponse, (request) => {
+                return request.serializeBinary();
+            }, todo_pb.GetItemResponse.deserializeBinary);
+            this.methodDescriptorOpenItem = new MethodDescriptor('/server.TodoService/OpenItem', MethodType.UNARY, todo_pb.GetItemRequest, todo_pb.GetItemResponse, (request) => {
+                return request.serializeBinary();
+            }, todo_pb.GetItemResponse.deserializeBinary);
+            this.methodDescriptorDeleteItem = new MethodDescriptor('/server.TodoService/DeleteItem', MethodType.UNARY, todo_pb.GetItemRequest, todo_pb.GeneralResponse, (request) => {
+                return request.serializeBinary();
+            }, todo_pb.GeneralResponse.deserializeBinary);
+            if (!options)
+                options = {};
+            if (!credentials)
+                credentials = {};
+            options['format'] = 'binary';
+            this.client_ = new GrpcWebClientBase(options);
+            this.hostname_ = hostname;
+            this.credentials_ = credentials;
+            this.options_ = options;
+        }
+        getItems(request, metadata, callback) {
+            if (callback !== undefined) {
+                return this.client_.rpcCall(this.hostname_ +
+                    '/server.TodoService/GetItems', request, metadata || {}, this.methodDescriptorGetItems, callback);
+            }
+            return this.client_.unaryCall(this.hostname_ +
+                '/server.TodoService/GetItems', request, metadata || {}, this.methodDescriptorGetItems);
+        }
+        getItem(request, metadata, callback) {
+            if (callback !== undefined) {
+                return this.client_.rpcCall(this.hostname_ +
+                    '/server.TodoService/GetItem', request, metadata || {}, this.methodDescriptorGetItem, callback);
+            }
+            return this.client_.unaryCall(this.hostname_ +
+                '/server.TodoService/GetItem', request, metadata || {}, this.methodDescriptorGetItem);
+        }
+        createItem(request, metadata, callback) {
+            if (callback !== undefined) {
+                return this.client_.rpcCall(this.hostname_ +
+                    '/server.TodoService/CreateItem', request, metadata || {}, this.methodDescriptorCreateItem, callback);
+            }
+            return this.client_.unaryCall(this.hostname_ +
+                '/server.TodoService/CreateItem', request, metadata || {}, this.methodDescriptorCreateItem);
+        }
+        closeItem(request, metadata, callback) {
+            if (callback !== undefined) {
+                return this.client_.rpcCall(this.hostname_ +
+                    '/server.TodoService/CloseItem', request, metadata || {}, this.methodDescriptorCloseItem, callback);
+            }
+            return this.client_.unaryCall(this.hostname_ +
+                '/server.TodoService/CloseItem', request, metadata || {}, this.methodDescriptorCloseItem);
+        }
+        openItem(request, metadata, callback) {
+            if (callback !== undefined) {
+                return this.client_.rpcCall(this.hostname_ +
+                    '/server.TodoService/OpenItem', request, metadata || {}, this.methodDescriptorOpenItem, callback);
+            }
+            return this.client_.unaryCall(this.hostname_ +
+                '/server.TodoService/OpenItem', request, metadata || {}, this.methodDescriptorOpenItem);
+        }
+        deleteItem(request, metadata, callback) {
+            if (callback !== undefined) {
+                return this.client_.rpcCall(this.hostname_ +
+                    '/server.TodoService/DeleteItem', request, metadata || {}, this.methodDescriptorDeleteItem, callback);
+            }
+            return this.client_.unaryCall(this.hostname_ +
+                '/server.TodoService/DeleteItem', request, metadata || {}, this.methodDescriptorDeleteItem);
+        }
+    }
 
-    // GENERATED CODE -- DO NOT EDIT!
-
-
-    /* eslint-disable */
-    // @ts-nocheck
-
-
-
-    const grpc = {};
-    grpc.web = grpcWeb;
-
-
-
-    const proto$1 = {};
-    proto$1.server = todo_pb;
-
+    const subscriber_queue = [];
     /**
-     * @param {string} hostname
-     * @param {?Object} credentials
-     * @param {?grpc.web.ClientOptions} options
-     * @constructor
-     * @struct
-     * @final
+     * Create a `Writable` store that allows both updating and reading by subscription.
+     * @param {*=}value initial value
+     * @param {StartStopNotifier=}start start and stop notifications for subscriptions
      */
-    proto$1.server.TodoServiceClient =
-        function(hostname, credentials, options) {
-      if (!options) options = {};
-      options.format = 'binary';
+    function writable(value, start = noop) {
+        let stop;
+        const subscribers = new Set();
+        function set(new_value) {
+            if (safe_not_equal(value, new_value)) {
+                value = new_value;
+                if (stop) { // store is ready
+                    const run_queue = !subscriber_queue.length;
+                    for (const subscriber of subscribers) {
+                        subscriber[1]();
+                        subscriber_queue.push(subscriber, value);
+                    }
+                    if (run_queue) {
+                        for (let i = 0; i < subscriber_queue.length; i += 2) {
+                            subscriber_queue[i][0](subscriber_queue[i + 1]);
+                        }
+                        subscriber_queue.length = 0;
+                    }
+                }
+            }
+        }
+        function update(fn) {
+            set(fn(value));
+        }
+        function subscribe(run, invalidate = noop) {
+            const subscriber = [run, invalidate];
+            subscribers.add(subscriber);
+            if (subscribers.size === 1) {
+                stop = start(set) || noop;
+            }
+            run(value);
+            return () => {
+                subscribers.delete(subscriber);
+                if (subscribers.size === 0) {
+                    stop();
+                    stop = null;
+                }
+            };
+        }
+        return { set, update, subscribe };
+    }
 
-      /**
-       * @private @const {!grpc.web.GrpcWebClientBase} The client
-       */
-      this.client_ = new grpc.web.GrpcWebClientBase(options);
-
-      /**
-       * @private @const {string} The hostname
-       */
-      this.hostname_ = hostname;
-
+    const createItemsStore = () => {
+        const store = writable([]);
+        return Object.assign(Object.assign({}, store), { addItem(item) {
+                store.update(s => [...s, item]);
+            },
+            removeItem(id) {
+                store.update(s => s.filter(({ id: _id }) => _id !== id));
+            },
+            updateItem(item) {
+                const currentStore = get_store_value(store);
+                const index = currentStore.findIndex(({ id }) => item.id === id);
+                if (index === -1)
+                    return;
+                currentStore.splice(index, 1, item);
+                store.set(currentStore);
+            } });
     };
+    const itemStore = createItemsStore();
 
-
-    /**
-     * @param {string} hostname
-     * @param {?Object} credentials
-     * @param {?grpc.web.ClientOptions} options
-     * @constructor
-     * @struct
-     * @final
-     */
-    proto$1.server.TodoServicePromiseClient =
-        function(hostname, credentials, options) {
-      if (!options) options = {};
-      options.format = 'binary';
-
-      /**
-       * @private @const {!grpc.web.GrpcWebClientBase} The client
-       */
-      this.client_ = new grpc.web.GrpcWebClientBase(options);
-
-      /**
-       * @private @const {string} The hostname
-       */
-      this.hostname_ = hostname;
-
-    };
-
-
-    /**
-     * @const
-     * @type {!grpc.web.MethodDescriptor<
-     *   !proto.google.protobuf.Empty,
-     *   !proto.server.GetItemsResponse>}
-     */
-    const methodDescriptor_TodoService_GetItems = new grpc.web.MethodDescriptor(
-      '/server.TodoService/GetItems',
-      grpc.web.MethodType.UNARY,
-      empty_pb.Empty,
-      proto$1.server.GetItemsResponse,
-      /**
-       * @param {!proto.google.protobuf.Empty} request
-       * @return {!Uint8Array}
-       */
-      function(request) {
-        return request.serializeBinary();
-      },
-      proto$1.server.GetItemsResponse.deserializeBinary
-    );
-
-
-    /**
-     * @param {!proto.google.protobuf.Empty} request The
-     *     request proto
-     * @param {?Object<string, string>} metadata User defined
-     *     call metadata
-     * @param {function(?grpc.web.RpcError, ?proto.server.GetItemsResponse)}
-     *     callback The callback function(error, response)
-     * @return {!grpc.web.ClientReadableStream<!proto.server.GetItemsResponse>|undefined}
-     *     The XHR Node Readable Stream
-     */
-    proto$1.server.TodoServiceClient.prototype.getItems =
-        function(request, metadata, callback) {
-      return this.client_.rpcCall(this.hostname_ +
-          '/server.TodoService/GetItems',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_GetItems,
-          callback);
-    };
-
-
-    /**
-     * @param {!proto.google.protobuf.Empty} request The
-     *     request proto
-     * @param {?Object<string, string>=} metadata User defined
-     *     call metadata
-     * @return {!Promise<!proto.server.GetItemsResponse>}
-     *     Promise that resolves to the response
-     */
-    proto$1.server.TodoServicePromiseClient.prototype.getItems =
-        function(request, metadata) {
-      return this.client_.unaryCall(this.hostname_ +
-          '/server.TodoService/GetItems',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_GetItems);
-    };
-
-
-    /**
-     * @const
-     * @type {!grpc.web.MethodDescriptor<
-     *   !proto.server.GetItemRequest,
-     *   !proto.server.GetItemResponse>}
-     */
-    const methodDescriptor_TodoService_GetItem = new grpc.web.MethodDescriptor(
-      '/server.TodoService/GetItem',
-      grpc.web.MethodType.UNARY,
-      proto$1.server.GetItemRequest,
-      proto$1.server.GetItemResponse,
-      /**
-       * @param {!proto.server.GetItemRequest} request
-       * @return {!Uint8Array}
-       */
-      function(request) {
-        return request.serializeBinary();
-      },
-      proto$1.server.GetItemResponse.deserializeBinary
-    );
-
-
-    /**
-     * @param {!proto.server.GetItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>} metadata User defined
-     *     call metadata
-     * @param {function(?grpc.web.RpcError, ?proto.server.GetItemResponse)}
-     *     callback The callback function(error, response)
-     * @return {!grpc.web.ClientReadableStream<!proto.server.GetItemResponse>|undefined}
-     *     The XHR Node Readable Stream
-     */
-    proto$1.server.TodoServiceClient.prototype.getItem =
-        function(request, metadata, callback) {
-      return this.client_.rpcCall(this.hostname_ +
-          '/server.TodoService/GetItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_GetItem,
-          callback);
-    };
-
-
-    /**
-     * @param {!proto.server.GetItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>=} metadata User defined
-     *     call metadata
-     * @return {!Promise<!proto.server.GetItemResponse>}
-     *     Promise that resolves to the response
-     */
-    proto$1.server.TodoServicePromiseClient.prototype.getItem =
-        function(request, metadata) {
-      return this.client_.unaryCall(this.hostname_ +
-          '/server.TodoService/GetItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_GetItem);
-    };
-
-
-    /**
-     * @const
-     * @type {!grpc.web.MethodDescriptor<
-     *   !proto.server.CreateItemRequest,
-     *   !proto.server.Item>}
-     */
-    const methodDescriptor_TodoService_CreateItem = new grpc.web.MethodDescriptor(
-      '/server.TodoService/CreateItem',
-      grpc.web.MethodType.UNARY,
-      proto$1.server.CreateItemRequest,
-      proto$1.server.Item,
-      /**
-       * @param {!proto.server.CreateItemRequest} request
-       * @return {!Uint8Array}
-       */
-      function(request) {
-        return request.serializeBinary();
-      },
-      proto$1.server.Item.deserializeBinary
-    );
-
-
-    /**
-     * @param {!proto.server.CreateItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>} metadata User defined
-     *     call metadata
-     * @param {function(?grpc.web.RpcError, ?proto.server.Item)}
-     *     callback The callback function(error, response)
-     * @return {!grpc.web.ClientReadableStream<!proto.server.Item>|undefined}
-     *     The XHR Node Readable Stream
-     */
-    proto$1.server.TodoServiceClient.prototype.createItem =
-        function(request, metadata, callback) {
-      return this.client_.rpcCall(this.hostname_ +
-          '/server.TodoService/CreateItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_CreateItem,
-          callback);
-    };
-
-
-    /**
-     * @param {!proto.server.CreateItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>=} metadata User defined
-     *     call metadata
-     * @return {!Promise<!proto.server.Item>}
-     *     Promise that resolves to the response
-     */
-    proto$1.server.TodoServicePromiseClient.prototype.createItem =
-        function(request, metadata) {
-      return this.client_.unaryCall(this.hostname_ +
-          '/server.TodoService/CreateItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_CreateItem);
-    };
-
-
-    /**
-     * @const
-     * @type {!grpc.web.MethodDescriptor<
-     *   !proto.server.GetItemRequest,
-     *   !proto.server.GeneralResponse>}
-     */
-    const methodDescriptor_TodoService_CloseItem = new grpc.web.MethodDescriptor(
-      '/server.TodoService/CloseItem',
-      grpc.web.MethodType.UNARY,
-      proto$1.server.GetItemRequest,
-      proto$1.server.GeneralResponse,
-      /**
-       * @param {!proto.server.GetItemRequest} request
-       * @return {!Uint8Array}
-       */
-      function(request) {
-        return request.serializeBinary();
-      },
-      proto$1.server.GeneralResponse.deserializeBinary
-    );
-
-
-    /**
-     * @param {!proto.server.GetItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>} metadata User defined
-     *     call metadata
-     * @param {function(?grpc.web.RpcError, ?proto.server.GeneralResponse)}
-     *     callback The callback function(error, response)
-     * @return {!grpc.web.ClientReadableStream<!proto.server.GeneralResponse>|undefined}
-     *     The XHR Node Readable Stream
-     */
-    proto$1.server.TodoServiceClient.prototype.closeItem =
-        function(request, metadata, callback) {
-      return this.client_.rpcCall(this.hostname_ +
-          '/server.TodoService/CloseItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_CloseItem,
-          callback);
-    };
-
-
-    /**
-     * @param {!proto.server.GetItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>=} metadata User defined
-     *     call metadata
-     * @return {!Promise<!proto.server.GeneralResponse>}
-     *     Promise that resolves to the response
-     */
-    proto$1.server.TodoServicePromiseClient.prototype.closeItem =
-        function(request, metadata) {
-      return this.client_.unaryCall(this.hostname_ +
-          '/server.TodoService/CloseItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_CloseItem);
-    };
-
-
-    /**
-     * @const
-     * @type {!grpc.web.MethodDescriptor<
-     *   !proto.server.GetItemRequest,
-     *   !proto.server.GeneralResponse>}
-     */
-    const methodDescriptor_TodoService_DeleteItem = new grpc.web.MethodDescriptor(
-      '/server.TodoService/DeleteItem',
-      grpc.web.MethodType.UNARY,
-      proto$1.server.GetItemRequest,
-      proto$1.server.GeneralResponse,
-      /**
-       * @param {!proto.server.GetItemRequest} request
-       * @return {!Uint8Array}
-       */
-      function(request) {
-        return request.serializeBinary();
-      },
-      proto$1.server.GeneralResponse.deserializeBinary
-    );
-
-
-    /**
-     * @param {!proto.server.GetItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>} metadata User defined
-     *     call metadata
-     * @param {function(?grpc.web.RpcError, ?proto.server.GeneralResponse)}
-     *     callback The callback function(error, response)
-     * @return {!grpc.web.ClientReadableStream<!proto.server.GeneralResponse>|undefined}
-     *     The XHR Node Readable Stream
-     */
-    proto$1.server.TodoServiceClient.prototype.deleteItem =
-        function(request, metadata, callback) {
-      return this.client_.rpcCall(this.hostname_ +
-          '/server.TodoService/DeleteItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_DeleteItem,
-          callback);
-    };
-
-
-    /**
-     * @param {!proto.server.GetItemRequest} request The
-     *     request proto
-     * @param {?Object<string, string>=} metadata User defined
-     *     call metadata
-     * @return {!Promise<!proto.server.GeneralResponse>}
-     *     Promise that resolves to the response
-     */
-    proto$1.server.TodoServicePromiseClient.prototype.deleteItem =
-        function(request, metadata) {
-      return this.client_.unaryCall(this.hostname_ +
-          '/server.TodoService/DeleteItem',
-          request,
-          metadata || {},
-          methodDescriptor_TodoService_DeleteItem);
-    };
-
-
-    var todo_grpc_web_pb = proto$1.server;
-
-    const todoServer = new todo_grpc_web_pb.TodoServicePromiseClient("https://grpctodo.dev:8081");
-
+    const todoServer = new TodoServiceClient("/server");
     const itemUnwrapper = (item) => ({
-      id: item.getId(),
-      title: item.getTitle(),
-      description: item.getDescription(),
-      closed: item.getClosed(),
+        id: item.getId(),
+        title: item.getTitle(),
+        description: item.getDescription(),
+        closed: item.getClosed(),
     });
-
+    const itemWrapper = ({ title, description, closed }) => {
+        const itemWrapped = new todo_pb.Item();
+        itemWrapped.setTitle(title);
+        itemWrapped.setDescription(description);
+        closed && itemWrapped.setClosed(closed);
+        return itemWrapped;
+    };
     const getItems = async () => {
         const req = new todo_pb.GetItemsRequest();
         const response = await todoServer.getItems(req, {});
-
-        return response.getItemsList().map((item) => itemUnwrapper(item));
+        itemStore.set(response.getItemsList().map((item) => itemUnwrapper(item)));
+    };
+    const createItem = async (newItem) => {
+        const req = new todo_pb.CreateItemRequest();
+        const itemDto = itemWrapper(newItem);
+        req.setItem(itemDto);
+        const response = await todoServer.createItem(req, {});
+        itemStore.addItem(itemUnwrapper(response.getItem()));
+    };
+    const deleteItem = async (id) => {
+        const req = new todo_pb.GetItemRequest();
+        req.setId(id);
+        await todoServer.deleteItem(req, {});
+        itemStore.removeItem(id);
+    };
+    const closeItem = async (id) => {
+        const req = new todo_pb.GetItemRequest();
+        req.setId(id);
+        const response = await todoServer.closeItem(req, {});
+        itemStore.updateItem(itemUnwrapper(response.getItem()));
+    };
+    const openItem = async (id) => {
+        const req = new todo_pb.GetItemRequest();
+        req.setId(id);
+        const response = await todoServer.openItem(req, {});
+        itemStore.updateItem(itemUnwrapper(response.getItem()));
     };
 
-    /* src/App.svelte generated by Svelte v3.48.0 */
+    /* src/lib/CreateItem.svelte generated by Svelte v3.48.0 */
+    const file$2 = "src/lib/CreateItem.svelte";
 
-    const { console: console_1 } = globals;
-    const file = "src/App.svelte";
-
-    function create_fragment(ctx) {
-    	let main;
-    	let h1;
+    function create_fragment$2(ctx) {
+    	let label0;
     	let t1;
-    	let counter;
+    	let input0;
     	let t2;
-    	let p0;
-    	let t3;
-    	let a0;
-    	let t5;
+    	let label5;
+    	let label4;
+    	let h3;
+    	let t4;
+    	let div0;
+    	let label1;
+    	let span0;
     	let t6;
-    	let p1;
+    	let input1;
     	let t7;
-    	let a1;
+    	let div1;
+    	let label2;
+    	let span1;
     	let t9;
-    	let current;
-    	counter = new Counter({ $$inline: true });
+    	let input2;
+    	let t10;
+    	let div2;
+    	let label3;
+    	let mounted;
+    	let dispose;
 
     	const block = {
     		c: function create() {
-    			main = element("main");
-    			h1 = element("h1");
-    			h1.textContent = "Hello world!";
+    			label0 = element("label");
+    			label0.textContent = "Create Item";
     			t1 = space();
-    			create_component(counter.$$.fragment);
+    			input0 = element("input");
     			t2 = space();
-    			p0 = element("p");
-    			t3 = text("Visit ");
-    			a0 = element("a");
-    			a0.textContent = "svelte.dev";
-    			t5 = text(" to learn how to build Svelte\n    apps.");
+    			label5 = element("label");
+    			label4 = element("label");
+    			h3 = element("h3");
+    			h3.textContent = "Create an item";
+    			t4 = space();
+    			div0 = element("div");
+    			label1 = element("label");
+    			span0 = element("span");
+    			span0.textContent = "Title";
     			t6 = space();
-    			p1 = element("p");
-    			t7 = text("Check out ");
-    			a1 = element("a");
-    			a1.textContent = "SvelteKit";
-    			t9 = text(" for\n    the officially supported framework, also powered by Vite!");
-    			attr_dev(h1, "class", "svelte-lb6p4a");
-    			add_location(h1, file, 17, 2, 286);
-    			attr_dev(a0, "href", "https://svelte.dev");
-    			add_location(a0, file, 22, 10, 340);
-    			attr_dev(p0, "class", "svelte-lb6p4a");
-    			add_location(p0, file, 21, 2, 326);
-    			attr_dev(a1, "href", "https://github.com/sveltejs/kit#readme");
-    			add_location(a1, file, 27, 14, 451);
-    			attr_dev(p1, "class", "svelte-lb6p4a");
-    			add_location(p1, file, 26, 2, 433);
-    			attr_dev(main, "class", "svelte-lb6p4a");
-    			add_location(main, file, 16, 0, 277);
+    			input1 = element("input");
+    			t7 = space();
+    			div1 = element("div");
+    			label2 = element("label");
+    			span1 = element("span");
+    			span1.textContent = "Description";
+    			t9 = space();
+    			input2 = element("input");
+    			t10 = space();
+    			div2 = element("div");
+    			label3 = element("label");
+    			label3.textContent = "Create";
+    			attr_dev(label0, "for", "my-modal");
+    			attr_dev(label0, "class", "btn modal-button btn-primary");
+    			add_location(label0, file$2, 14, 0, 320);
+    			attr_dev(input0, "type", "checkbox");
+    			attr_dev(input0, "id", "my-modal");
+    			attr_dev(input0, "class", "modal-toggle");
+    			add_location(input0, file$2, 17, 0, 442);
+    			attr_dev(h3, "class", "font-bold text-lg");
+    			add_location(h3, file$2, 20, 8, 609);
+    			attr_dev(span0, "class", "label-text");
+    			add_location(span0, file$2, 24, 16, 829);
+    			attr_dev(label1, "class", "label");
+    			add_location(label1, file$2, 23, 12, 791);
+    			attr_dev(input1, "type", "text");
+    			attr_dev(input1, "placeholder", "Type here");
+    			attr_dev(input1, "class", "input input-bordered w-full max-w-xs");
+    			add_location(input1, file$2, 26, 12, 900);
+    			attr_dev(div0, "class", "form-control w-full max-w-xs");
+    			add_location(div0, file$2, 21, 8, 667);
+    			attr_dev(span1, "class", "label-text");
+    			add_location(span1, file$2, 36, 16, 1271);
+    			attr_dev(label2, "class", "label");
+    			add_location(label2, file$2, 35, 12, 1233);
+    			attr_dev(input2, "type", "text");
+    			attr_dev(input2, "placeholder", "Type here");
+    			attr_dev(input2, "class", "input input-bordered w-full max-w-xs");
+    			add_location(input2, file$2, 38, 12, 1348);
+    			attr_dev(div1, "class", "form-control w-full max-w-xs");
+    			add_location(div1, file$2, 33, 8, 1109);
+    			attr_dev(label3, "for", "my-modal");
+    			attr_dev(label3, "class", "btn btn-primary my-2");
+    			add_location(label3, file$2, 46, 12, 1602);
+    			attr_dev(div2, "class", "modal-action");
+    			add_location(div2, file$2, 45, 8, 1563);
+    			attr_dev(label4, "class", "modal-box relative");
+    			attr_dev(label4, "for", "");
+    			add_location(label4, file$2, 19, 4, 559);
+    			attr_dev(label5, "for", "my-modal");
+    			attr_dev(label5, "class", "modal cursor-pointer");
+    			add_location(label5, file$2, 18, 0, 503);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
     		},
     		m: function mount(target, anchor) {
-    			insert_dev(target, main, anchor);
-    			append_dev(main, h1);
-    			append_dev(main, t1);
-    			mount_component(counter, main, null);
-    			append_dev(main, t2);
-    			append_dev(main, p0);
-    			append_dev(p0, t3);
-    			append_dev(p0, a0);
-    			append_dev(p0, t5);
-    			append_dev(main, t6);
-    			append_dev(main, p1);
-    			append_dev(p1, t7);
-    			append_dev(p1, a1);
-    			append_dev(p1, t9);
-    			current = true;
+    			insert_dev(target, label0, anchor);
+    			insert_dev(target, t1, anchor);
+    			insert_dev(target, input0, anchor);
+    			insert_dev(target, t2, anchor);
+    			insert_dev(target, label5, anchor);
+    			append_dev(label5, label4);
+    			append_dev(label4, h3);
+    			append_dev(label4, t4);
+    			append_dev(label4, div0);
+    			append_dev(div0, label1);
+    			append_dev(label1, span0);
+    			append_dev(div0, t6);
+    			append_dev(div0, input1);
+    			set_input_value(input1, /*title*/ ctx[0]);
+    			append_dev(label4, t7);
+    			append_dev(label4, div1);
+    			append_dev(div1, label2);
+    			append_dev(label2, span1);
+    			append_dev(div1, t9);
+    			append_dev(div1, input2);
+    			set_input_value(input2, /*description*/ ctx[1]);
+    			append_dev(label4, t10);
+    			append_dev(label4, div2);
+    			append_dev(div2, label3);
+
+    			if (!mounted) {
+    				dispose = [
+    					listen_dev(input1, "input", /*input1_input_handler*/ ctx[3]),
+    					listen_dev(input2, "input", /*input2_input_handler*/ ctx[4]),
+    					listen_dev(label3, "click", /*handleCreate*/ ctx[2], false, false, false)
+    				];
+
+    				mounted = true;
+    			}
+    		},
+    		p: function update(ctx, [dirty]) {
+    			if (dirty & /*title*/ 1 && input1.value !== /*title*/ ctx[0]) {
+    				set_input_value(input1, /*title*/ ctx[0]);
+    			}
+
+    			if (dirty & /*description*/ 2 && input2.value !== /*description*/ ctx[1]) {
+    				set_input_value(input2, /*description*/ ctx[1]);
+    			}
+    		},
+    		i: noop,
+    		o: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(label0);
+    			if (detaching) detach_dev(t1);
+    			if (detaching) detach_dev(input0);
+    			if (detaching) detach_dev(t2);
+    			if (detaching) detach_dev(label5);
+    			mounted = false;
+    			run_all(dispose);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_fragment$2.name,
+    		type: "component",
+    		source: "",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    function instance$2($$self, $$props, $$invalidate) {
+    	let { $$slots: slots = {}, $$scope } = $$props;
+    	validate_slots('CreateItem', slots, []);
+    	let title = "";
+    	let description = "";
+
+    	const handleCreate = async () => {
+    		if (!title || !description) {
+    			return;
+    		}
+
+    		await createItem({ title, description });
+    		$$invalidate(0, title = "");
+    		$$invalidate(1, description = "");
+    	};
+
+    	const writable_props = [];
+
+    	Object.keys($$props).forEach(key => {
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<CreateItem> was created with unknown prop '${key}'`);
+    	});
+
+    	function input1_input_handler() {
+    		title = this.value;
+    		$$invalidate(0, title);
+    	}
+
+    	function input2_input_handler() {
+    		description = this.value;
+    		$$invalidate(1, description);
+    	}
+
+    	$$self.$capture_state = () => ({
+    		createItem,
+    		title,
+    		description,
+    		handleCreate
+    	});
+
+    	$$self.$inject_state = $$props => {
+    		if ('title' in $$props) $$invalidate(0, title = $$props.title);
+    		if ('description' in $$props) $$invalidate(1, description = $$props.description);
+    	};
+
+    	if ($$props && "$$inject" in $$props) {
+    		$$self.$inject_state($$props.$$inject);
+    	}
+
+    	return [title, description, handleCreate, input1_input_handler, input2_input_handler];
+    }
+
+    class CreateItem extends SvelteComponentDev {
+    	constructor(options) {
+    		super(options);
+    		init(this, options, instance$2, create_fragment$2, safe_not_equal, {});
+
+    		dispatch_dev("SvelteRegisterComponent", {
+    			component: this,
+    			tagName: "CreateItem",
+    			options,
+    			id: create_fragment$2.name
+    		});
+    	}
+    }
+
+    /* src/lib/Item.svelte generated by Svelte v3.48.0 */
+    const file$1 = "src/lib/Item.svelte";
+
+    // (17:12) {:else}
+    function create_else_block$1(ctx) {
+    	let button;
+    	let mounted;
+    	let dispose;
+
+    	const block = {
+    		c: function create() {
+    			button = element("button");
+    			button.textContent = "Open";
+    			attr_dev(button, "class", "btn btn-info mx-2");
+    			add_location(button, file$1, 17, 16, 597);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, button, anchor);
+
+    			if (!mounted) {
+    				dispose = listen_dev(button, "click", /*click_handler_1*/ ctx[2], false, false, false);
+    				mounted = true;
+    			}
     		},
     		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(button);
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_else_block$1.name,
+    		type: "else",
+    		source: "(17:12) {:else}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (12:12) {#if !item.closed}
+    function create_if_block(ctx) {
+    	let button;
+    	let mounted;
+    	let dispose;
+
+    	const block = {
+    		c: function create() {
+    			button = element("button");
+    			button.textContent = "Close";
+    			attr_dev(button, "class", "btn btn-info mx-2");
+    			add_location(button, file$1, 12, 16, 419);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, button, anchor);
+
+    			if (!mounted) {
+    				dispose = listen_dev(button, "click", /*click_handler*/ ctx[1], false, false, false);
+    				mounted = true;
+    			}
+    		},
+    		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(button);
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_if_block.name,
+    		type: "if",
+    		source: "(12:12) {#if !item.closed}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    function create_fragment$1(ctx) {
+    	let div2;
+    	let div1;
+    	let h2;
+    	let t0_value = /*item*/ ctx[0].title + "";
+    	let t0;
+    	let t1;
+    	let p;
+    	let t2_value = /*item*/ ctx[0].description + "";
+    	let t2;
+    	let t3;
+    	let div0;
+    	let t4;
+    	let button;
+    	let mounted;
+    	let dispose;
+
+    	function select_block_type(ctx, dirty) {
+    		if (!/*item*/ ctx[0].closed) return create_if_block;
+    		return create_else_block$1;
+    	}
+
+    	let current_block_type = select_block_type(ctx);
+    	let if_block = current_block_type(ctx);
+
+    	const block = {
+    		c: function create() {
+    			div2 = element("div");
+    			div1 = element("div");
+    			h2 = element("h2");
+    			t0 = text(t0_value);
+    			t1 = space();
+    			p = element("p");
+    			t2 = text(t2_value);
+    			t3 = space();
+    			div0 = element("div");
+    			if_block.c();
+    			t4 = space();
+    			button = element("button");
+    			button.textContent = "Delete";
+    			attr_dev(h2, "class", "card-title ");
+    			toggle_class(h2, "line-through", /*item*/ ctx[0].closed);
+    			add_location(h2, file$1, 6, 8, 194);
+    			add_location(p, file$1, 9, 8, 299);
+    			attr_dev(button, "class", "btn btn-warning");
+    			add_location(button, file$1, 23, 12, 810);
+    			attr_dev(div0, "class", "card-actions justify-end");
+    			add_location(div0, file$1, 10, 8, 333);
+    			attr_dev(div1, "class", "card-body");
+    			add_location(div1, file$1, 5, 4, 162);
+    			attr_dev(div2, "class", "card w-96 bg-base-100 shadow-xl m-2");
+    			add_location(div2, file$1, 4, 0, 108);
+    		},
+    		l: function claim(nodes) {
+    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, div2, anchor);
+    			append_dev(div2, div1);
+    			append_dev(div1, h2);
+    			append_dev(h2, t0);
+    			append_dev(div1, t1);
+    			append_dev(div1, p);
+    			append_dev(p, t2);
+    			append_dev(div1, t3);
+    			append_dev(div1, div0);
+    			if_block.m(div0, null);
+    			append_dev(div0, t4);
+    			append_dev(div0, button);
+
+    			if (!mounted) {
+    				dispose = listen_dev(button, "click", /*click_handler_2*/ ctx[3], false, false, false);
+    				mounted = true;
+    			}
+    		},
+    		p: function update(ctx, [dirty]) {
+    			if (dirty & /*item*/ 1 && t0_value !== (t0_value = /*item*/ ctx[0].title + "")) set_data_dev(t0, t0_value);
+
+    			if (dirty & /*item*/ 1) {
+    				toggle_class(h2, "line-through", /*item*/ ctx[0].closed);
+    			}
+
+    			if (dirty & /*item*/ 1 && t2_value !== (t2_value = /*item*/ ctx[0].description + "")) set_data_dev(t2, t2_value);
+
+    			if (current_block_type === (current_block_type = select_block_type(ctx)) && if_block) {
+    				if_block.p(ctx, dirty);
+    			} else {
+    				if_block.d(1);
+    				if_block = current_block_type(ctx);
+
+    				if (if_block) {
+    					if_block.c();
+    					if_block.m(div0, t4);
+    				}
+    			}
+    		},
+    		i: noop,
+    		o: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(div2);
+    			if_block.d();
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_fragment$1.name,
+    		type: "component",
+    		source: "",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    function instance$1($$self, $$props, $$invalidate) {
+    	let { $$slots: slots = {}, $$scope } = $$props;
+    	validate_slots('Item', slots, []);
+    	let { item } = $$props;
+    	const writable_props = ['item'];
+
+    	Object.keys($$props).forEach(key => {
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Item> was created with unknown prop '${key}'`);
+    	});
+
+    	const click_handler = () => closeItem(item.id);
+    	const click_handler_1 = () => openItem(item.id);
+    	const click_handler_2 = () => deleteItem(item.id);
+
+    	$$self.$$set = $$props => {
+    		if ('item' in $$props) $$invalidate(0, item = $$props.item);
+    	};
+
+    	$$self.$capture_state = () => ({ closeItem, deleteItem, openItem, item });
+
+    	$$self.$inject_state = $$props => {
+    		if ('item' in $$props) $$invalidate(0, item = $$props.item);
+    	};
+
+    	if ($$props && "$$inject" in $$props) {
+    		$$self.$inject_state($$props.$$inject);
+    	}
+
+    	return [item, click_handler, click_handler_1, click_handler_2];
+    }
+
+    class Item extends SvelteComponentDev {
+    	constructor(options) {
+    		super(options);
+    		init(this, options, instance$1, create_fragment$1, safe_not_equal, { item: 0 });
+
+    		dispatch_dev("SvelteRegisterComponent", {
+    			component: this,
+    			tagName: "Item",
+    			options,
+    			id: create_fragment$1.name
+    		});
+
+    		const { ctx } = this.$$;
+    		const props = options.props || {};
+
+    		if (/*item*/ ctx[0] === undefined && !('item' in props)) {
+    			console.warn("<Item> was created without expected prop 'item'");
+    		}
+    	}
+
+    	get item() {
+    		throw new Error("<Item>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+    	}
+
+    	set item(value) {
+    		throw new Error("<Item>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+    	}
+    }
+
+    /* src/App.svelte generated by Svelte v3.48.0 */
+    const file = "src/App.svelte";
+
+    function get_each_context(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[1] = list[i];
+    	return child_ctx;
+    }
+
+    function get_each_context_1(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[1] = list[i];
+    	return child_ctx;
+    }
+
+    // (14:6) {:else}
+    function create_else_block_1(ctx) {
+    	let h1;
+
+    	const block = {
+    		c: function create() {
+    			h1 = element("h1");
+    			h1.textContent = "No item";
+    			add_location(h1, file, 14, 8, 532);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, h1, anchor);
+    		},
+    		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(h1);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_else_block_1.name,
+    		type: "else",
+    		source: "(14:6) {:else}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (12:6) {#each $itemStore.filter(({closed}) => !closed) as item (item.id)}
+    function create_each_block_1(key_1, ctx) {
+    	let first;
+    	let item;
+    	let current;
+
+    	item = new Item({
+    			props: { item: /*item*/ ctx[1] },
+    			$$inline: true
+    		});
+
+    	const block = {
+    		key: key_1,
+    		first: null,
+    		c: function create() {
+    			first = empty();
+    			create_component(item.$$.fragment);
+    			this.first = first;
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, first, anchor);
+    			mount_component(item, target, anchor);
+    			current = true;
+    		},
+    		p: function update(new_ctx, dirty) {
+    			ctx = new_ctx;
+    			const item_changes = {};
+    			if (dirty & /*$itemStore*/ 1) item_changes.item = /*item*/ ctx[1];
+    			item.$set(item_changes);
+    		},
     		i: function intro(local) {
     			if (current) return;
-    			transition_in(counter.$$.fragment, local);
+    			transition_in(item.$$.fragment, local);
     			current = true;
     		},
     		o: function outro(local) {
-    			transition_out(counter.$$.fragment, local);
+    			transition_out(item.$$.fragment, local);
     			current = false;
     		},
     		d: function destroy(detaching) {
-    			if (detaching) detach_dev(main);
-    			destroy_component(counter);
+    			if (detaching) detach_dev(first);
+    			destroy_component(item, detaching);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_each_block_1.name,
+    		type: "each",
+    		source: "(12:6) {#each $itemStore.filter(({closed}) => !closed) as item (item.id)}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (22:6) {:else}
+    function create_else_block(ctx) {
+    	let h1;
+
+    	const block = {
+    		c: function create() {
+    			h1 = element("h1");
+    			h1.textContent = "No item";
+    			add_location(h1, file, 22, 8, 801);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, h1, anchor);
+    		},
+    		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(h1);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_else_block.name,
+    		type: "else",
+    		source: "(22:6) {:else}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (20:6) {#each $itemStore.filter(({closed}) => !!closed) as item (item.id)}
+    function create_each_block(key_1, ctx) {
+    	let first;
+    	let item;
+    	let current;
+
+    	item = new Item({
+    			props: { item: /*item*/ ctx[1] },
+    			$$inline: true
+    		});
+
+    	const block = {
+    		key: key_1,
+    		first: null,
+    		c: function create() {
+    			first = empty();
+    			create_component(item.$$.fragment);
+    			this.first = first;
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, first, anchor);
+    			mount_component(item, target, anchor);
+    			current = true;
+    		},
+    		p: function update(new_ctx, dirty) {
+    			ctx = new_ctx;
+    			const item_changes = {};
+    			if (dirty & /*$itemStore*/ 1) item_changes.item = /*item*/ ctx[1];
+    			item.$set(item_changes);
+    		},
+    		i: function intro(local) {
+    			if (current) return;
+    			transition_in(item.$$.fragment, local);
+    			current = true;
+    		},
+    		o: function outro(local) {
+    			transition_out(item.$$.fragment, local);
+    			current = false;
+    		},
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(first);
+    			destroy_component(item, detaching);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_each_block.name,
+    		type: "each",
+    		source: "(20:6) {#each $itemStore.filter(({closed}) => !!closed) as item (item.id)}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    function create_fragment(ctx) {
+    	let div4;
+    	let div3;
+    	let div0;
+    	let each_blocks_1 = [];
+    	let each0_lookup = new Map();
+    	let t0;
+    	let div1;
+    	let t2;
+    	let div2;
+    	let each_blocks = [];
+    	let each1_lookup = new Map();
+    	let t3;
+    	let div5;
+    	let createitem;
+    	let current;
+    	let each_value_1 = /*$itemStore*/ ctx[0].filter(func);
+    	validate_each_argument(each_value_1);
+    	const get_key = ctx => /*item*/ ctx[1].id;
+    	validate_each_keys(ctx, each_value_1, get_each_context_1, get_key);
+
+    	for (let i = 0; i < each_value_1.length; i += 1) {
+    		let child_ctx = get_each_context_1(ctx, each_value_1, i);
+    		let key = get_key(child_ctx);
+    		each0_lookup.set(key, each_blocks_1[i] = create_each_block_1(key, child_ctx));
+    	}
+
+    	let each0_else = null;
+
+    	if (!each_value_1.length) {
+    		each0_else = create_else_block_1(ctx);
+    	}
+
+    	let each_value = /*$itemStore*/ ctx[0].filter(func_1);
+    	validate_each_argument(each_value);
+    	const get_key_1 = ctx => /*item*/ ctx[1].id;
+    	validate_each_keys(ctx, each_value, get_each_context, get_key_1);
+
+    	for (let i = 0; i < each_value.length; i += 1) {
+    		let child_ctx = get_each_context(ctx, each_value, i);
+    		let key = get_key_1(child_ctx);
+    		each1_lookup.set(key, each_blocks[i] = create_each_block(key, child_ctx));
+    	}
+
+    	let each1_else = null;
+
+    	if (!each_value.length) {
+    		each1_else = create_else_block(ctx);
+    	}
+
+    	createitem = new CreateItem({ $$inline: true });
+
+    	const block = {
+    		c: function create() {
+    			div4 = element("div");
+    			div3 = element("div");
+    			div0 = element("div");
+
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].c();
+    			}
+
+    			if (each0_else) {
+    				each0_else.c();
+    			}
+
+    			t0 = space();
+    			div1 = element("div");
+    			div1.textContent = "Closed →";
+    			t2 = space();
+    			div2 = element("div");
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].c();
+    			}
+
+    			if (each1_else) {
+    				each1_else.c();
+    			}
+
+    			t3 = space();
+    			div5 = element("div");
+    			create_component(createitem.$$.fragment);
+    			attr_dev(div0, "class", "flex flex-wrap justify-center ");
+    			add_location(div0, file, 10, 4, 368);
+    			attr_dev(div1, "class", "divider divider-horizontal");
+    			add_location(div1, file, 17, 4, 578);
+    			attr_dev(div2, "class", "flex flex-wrap justify-center");
+    			add_location(div2, file, 18, 4, 637);
+    			attr_dev(div3, "class", "w-screen grid grid-cols-[1fr_auto_1fr] place-items-center");
+    			add_location(div3, file, 9, 2, 292);
+    			attr_dev(div4, "class", "hero min-h-screen bg-base-200");
+    			add_location(div4, file, 8, 0, 246);
+    			attr_dev(div5, "class", "fixed right-2 top-2");
+    			add_location(div5, file, 28, 0, 860);
+    		},
+    		l: function claim(nodes) {
+    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, div4, anchor);
+    			append_dev(div4, div3);
+    			append_dev(div3, div0);
+
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].m(div0, null);
+    			}
+
+    			if (each0_else) {
+    				each0_else.m(div0, null);
+    			}
+
+    			append_dev(div3, t0);
+    			append_dev(div3, div1);
+    			append_dev(div3, t2);
+    			append_dev(div3, div2);
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].m(div2, null);
+    			}
+
+    			if (each1_else) {
+    				each1_else.m(div2, null);
+    			}
+
+    			insert_dev(target, t3, anchor);
+    			insert_dev(target, div5, anchor);
+    			mount_component(createitem, div5, null);
+    			current = true;
+    		},
+    		p: function update(ctx, [dirty]) {
+    			if (dirty & /*$itemStore*/ 1) {
+    				each_value_1 = /*$itemStore*/ ctx[0].filter(func);
+    				validate_each_argument(each_value_1);
+    				group_outros();
+    				validate_each_keys(ctx, each_value_1, get_each_context_1, get_key);
+    				each_blocks_1 = update_keyed_each(each_blocks_1, dirty, get_key, 1, ctx, each_value_1, each0_lookup, div0, outro_and_destroy_block, create_each_block_1, null, get_each_context_1);
+    				check_outros();
+
+    				if (!each_value_1.length && each0_else) {
+    					each0_else.p(ctx, dirty);
+    				} else if (!each_value_1.length) {
+    					each0_else = create_else_block_1(ctx);
+    					each0_else.c();
+    					each0_else.m(div0, null);
+    				} else if (each0_else) {
+    					each0_else.d(1);
+    					each0_else = null;
+    				}
+    			}
+
+    			if (dirty & /*$itemStore*/ 1) {
+    				each_value = /*$itemStore*/ ctx[0].filter(func_1);
+    				validate_each_argument(each_value);
+    				group_outros();
+    				validate_each_keys(ctx, each_value, get_each_context, get_key_1);
+    				each_blocks = update_keyed_each(each_blocks, dirty, get_key_1, 1, ctx, each_value, each1_lookup, div2, outro_and_destroy_block, create_each_block, null, get_each_context);
+    				check_outros();
+
+    				if (!each_value.length && each1_else) {
+    					each1_else.p(ctx, dirty);
+    				} else if (!each_value.length) {
+    					each1_else = create_else_block(ctx);
+    					each1_else.c();
+    					each1_else.m(div2, null);
+    				} else if (each1_else) {
+    					each1_else.d(1);
+    					each1_else = null;
+    				}
+    			}
+    		},
+    		i: function intro(local) {
+    			if (current) return;
+
+    			for (let i = 0; i < each_value_1.length; i += 1) {
+    				transition_in(each_blocks_1[i]);
+    			}
+
+    			for (let i = 0; i < each_value.length; i += 1) {
+    				transition_in(each_blocks[i]);
+    			}
+
+    			transition_in(createitem.$$.fragment, local);
+    			current = true;
+    		},
+    		o: function outro(local) {
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				transition_out(each_blocks_1[i]);
+    			}
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				transition_out(each_blocks[i]);
+    			}
+
+    			transition_out(createitem.$$.fragment, local);
+    			current = false;
+    		},
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(div4);
+
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].d();
+    			}
+
+    			if (each0_else) each0_else.d();
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].d();
+    			}
+
+    			if (each1_else) each1_else.d();
+    			if (detaching) detach_dev(t3);
+    			if (detaching) detach_dev(div5);
+    			destroy_component(createitem);
     		}
     	};
 
@@ -2960,40 +3598,32 @@ var app = (function () {
     	return block;
     }
 
+    const func = ({ closed }) => !closed;
+    const func_1 = ({ closed }) => !!closed;
+
     function instance($$self, $$props, $$invalidate) {
+    	let $itemStore;
+    	validate_store(itemStore, 'itemStore');
+    	component_subscribe($$self, itemStore, $$value => $$invalidate(0, $itemStore = $$value));
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('App', slots, []);
-    	let items = [];
-
-    	onMount(() => {
-    		(async () => {
-    			$$invalidate(0, items = await getItems());
-    		})();
-    	});
-
+    	onMount(getItems);
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1.warn(`<App> was created with unknown prop '${key}'`);
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<App> was created with unknown prop '${key}'`);
     	});
 
-    	$$self.$capture_state = () => ({ onMount, Counter, getItems, items });
+    	$$self.$capture_state = () => ({
+    		onMount,
+    		CreateItem,
+    		Item,
+    		getItems,
+    		itemStore,
+    		$itemStore
+    	});
 
-    	$$self.$inject_state = $$props => {
-    		if ('items' in $$props) $$invalidate(0, items = $$props.items);
-    	};
-
-    	if ($$props && "$$inject" in $$props) {
-    		$$self.$inject_state($$props.$$inject);
-    	}
-
-    	$$self.$$.update = () => {
-    		if ($$self.$$.dirty & /*items*/ 1) {
-    			console.log({ items });
-    		}
-    	};
-
-    	return [items];
+    	return [$itemStore];
     }
 
     class App extends SvelteComponentDev {
@@ -3011,10 +3641,10 @@ var app = (function () {
     }
 
     const app = new App({
-    	target: document.body,
-    	props: {
-    		name: 'world---'
-    	}
+        target: document.body,
+        props: {
+            name: 'world---'
+        }
     });
 
     return app;

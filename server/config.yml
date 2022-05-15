@@ -1,8 +1,8 @@
 serverConfig:
   tlsEnabled: true
   port: "4000"
-  certPath: "/cert/grpctodo.dev.pem"
-  keyPath: "/cert/grpctodo.dev-key.pem"
+  certPath: "/certs/cert.pem"
+  keyPath: "/certs/key.pem"
 postgres:
   username: "postgres"
   password: "postgres"

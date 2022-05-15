@@ -45,9 +45,11 @@ service TodoService {
 
     rpc GetItem(GetItemRequest) returns (GetItemResponse) {};
 
-    rpc CreateItem(CreateItemRequest) returns (Item) {};    
+    rpc CreateItem(CreateItemRequest) returns (GetItemResponse) {};    
 
-    rpc CloseItem(GetItemRequest) returns (GeneralResponse) {};
+    rpc CloseItem(GetItemRequest) returns (GetItemResponse) {};
+
+    rpc OpenItem(GetItemRequest) returns (GetItemResponse) {};
 
     rpc DeleteItem(GetItemRequest) returns (GeneralResponse) {};
     

@@ -25,7 +25,6 @@ var blankItem = &todoPB.GetItemResponse{}
 func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {
 	fmt.Println("GetItems() called")
 
-
 	toRespItems := []*domain.Item{}
 
 	if result := s.DB.Find(&toRespItems); result.Error != nil {
@@ -59,8 +58,6 @@ func (s *Server) GetItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB
 		return blankItem, status.Error(codes.Internal, result.Error.Error())
 	}
 	fmt.Println(item)
-
-	
 
 	return &todoPB.GetItemResponse{
 		Item: &todoPB.Item{
@@ -98,9 +95,9 @@ func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*tod
 
 }
 
-func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*todoPB.Item, error) {
+func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*todoPB.GetItemResponse, error) {
 	fmt.Println("CreateItem() called")
-	blankItem := &todoPB.Item{}
+	blankResponse := &todoPB.GetItemResponse{}
 
 	newItem := &domain.Item{
 		Title:       r.Item.Title,
@@ -110,27 +107,29 @@ func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*
 
 	if result := s.DB.Create(&newItem); result.Error != nil {
 		fmt.Println(result.Error)
-		return blankItem, status.Error(codes.Internal, result.Error.Error())
+		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
-	return &todoPB.Item{
-		Id:          fmt.Sprintf("%d", newItem.Id),
-		Title:       newItem.Title,
-		Description: newItem.Description,
-		Closed:      newItem.Closed,
+	return &todoPB.GetItemResponse{
+		Item: &todoPB.Item{
+			Id:          fmt.Sprintf("%d", newItem.Id),
+			Title:       newItem.Title,
+			Description: newItem.Description,
+			Closed:      newItem.Closed,
+		},
 	}, nil
 
 }
 
-func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GeneralResponse, error) {
+func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GetItemResponse, error) {
 	fmt.Println("DeleteItem() called")
 
-	blankResponse := &todoPB.GeneralResponse{}
+	blankResponse := &todoPB.GetItemResponse{}
 
 	if r.Id == "" {
 		return blankResponse, status.Error(codes.Internal, "no id provided")
 	}
-	
+
 	var item domain.Item
 
 	if result := s.DB.First(&item, r.Id); result.Error != nil {
@@ -144,7 +143,43 @@ func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todo
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
-	return &todoPB.GeneralResponse{
-		Message: "Item closed",
+	return &todoPB.GetItemResponse{
+		Item: &todoPB.Item{
+			Id:          fmt.Sprintf("%d", item.Id),
+			Title:       item.Title,
+			Description: item.Description,
+			Closed:      item.Closed,
+		},
+	}, nil
+}
+func (s *Server) OpenItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GetItemResponse, error) {
+	fmt.Println("OpenItem() called")
+
+	blankResponse := &todoPB.GetItemResponse{}
+
+	if r.Id == "" {
+		return blankResponse, status.Error(codes.Internal, "no id provided")
+	}
+
+	var item domain.Item
+
+	if result := s.DB.First(&item, r.Id); result.Error != nil {
+		fmt.Println(result.Error)
+		return blankResponse, status.Error(codes.Internal, result.Error.Error())
+	}
+
+	// Close that item
+	if result := s.DB.Model(&item).UpdateColumn("closed", false); result.Error != nil {
+		fmt.Println(result.Error)
+		return blankResponse, status.Error(codes.Internal, result.Error.Error())
+	}
+
+	return &todoPB.GetItemResponse{
+		Item: &todoPB.Item{
+			Id:          fmt.Sprintf("%d", item.Id),
+			Title:       item.Title,
+			Description: item.Description,
+			Closed:      item.Closed,
+		},
 	}, nil
 }

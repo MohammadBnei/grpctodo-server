@@ -1,14 +1,11 @@
 version: '3.9'
 
-volumes:
-  caddy_data:
-  caddy_config:
-
 services:
 
-
   server:
-    build: ./server
+    build:
+      dockerfile: ./server/Dockerfile
+      context: ./
     working_dir: /go/src/github.com/MohammadBnei/gRPC-web-tuto/server
     platform: linux/amd64
     environment:
@@ -16,12 +13,25 @@ services:
     ports:
       - 4000:4000
     volumes:
+      - ./dev/certs/api.grpctodo.dev+2-key.pem:/certs/key.pem:ro
+      - ./dev/certs/api.grpctodo.dev+2.pem:/certs/cert.pem:ro
       - ./server:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server
-      - ./proto/go/todoPB:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server/todoPB
-      - ./dev/certs:/cert
+      - ./proto/go/todoPB:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server/todoPB:ro
     command: gowatch
+
+  front:
+    build:
+      dockerfile: ./svelte/Dockerfile
+      context: ./
+    working_dir: /app
+    volumes:
+      - ./dev/certs/api.grpctodo.dev+2-key.pem:/certs/key.pem:ro
+      - ./dev/certs/api.grpctodo.dev+2.pem:/certs/cert.pem:ro
+      - ./svelte:/app/
+      - ./proto/js:/app/src/proto
+    # command: nr dev
     stdin_open: true
-  
+
   postgres:
     image: postgres
     ports:
@@ -31,26 +41,14 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: grpctodo
 
-  grpc-gen:
-    build: 
-      dockerfile: ./proto/DockerfileGrpc
-      context: ./
-    volumes:
-      - ./proto:/gen/proto
-      - ./proto/go:/out/go
-      - ./proto/js:/out/js
-      - ./Makefile:/Makefile
-    command: bash -c "make golang && make js"
-    working_dir: /
-
   envoy:
     image: envoyproxy/envoy:v1.22.0
     volumes:
       - ./dev/envoy.yml:/etc/envoy/envoy.yml
-      - ./dev/certs/grpctodo.dev-key.pem:/etc/certs/key.pem
-      - ./dev/certs/grpctodo.dev.pem:/etc/certs/cert.pem
-    ports: 
-      - 8081:8081
+      - ./dev/certs/api.grpctodo.dev+2-key.pem:/etc/certs/key.pem
+      - ./dev/certs/api.grpctodo.dev+2.pem:/etc/certs/cert.pem
+    ports:
+      - 443:8081
       - 9901:9901
     stdin_open: true
     command: envoy -c /etc/envoy/envoy.yml -l trace

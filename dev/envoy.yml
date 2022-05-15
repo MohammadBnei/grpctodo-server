@@ -20,7 +20,7 @@ static_resources:
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 codec_type: auto
-                stat_prefix: hello_world_service
+                stat_prefix: todo_service
                 http_filters:
                   - name: envoy.filters.http.grpc_web
                     typed_config:
@@ -29,7 +29,7 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
                   - name: envoy.filters.http.router
-                    typed_config: 
+                    typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
                 route_config:
                   name: my_first_route
@@ -39,32 +39,36 @@ static_resources:
                         - "*"
                       routes:
                         - match:
-                            prefix: "/"
+                            prefix: "/server/"
                           route:
+                            prefix_rewrite: "/"
                             cluster: server_grpc
                             timeout: 0s
                             max_stream_duration:
                               grpc_timeout_header_max: 0s
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: svelte_grpc
                       cors:
                         allow_origin_string_match:
-                        - prefix: "*"
+                          - prefix: "*"
                         allow_methods: GET, PUT, DELETE, POST, OPTIONS
-                        allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout
+                        allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout
                         max_age: "1728000"
-                        expose_headers: custom-header-1,grpc-status,grpc-message
+                        expose_headers: grpc-status,grpc-message
 
           transport_socket:
             name: envoy.transport_sockets.tls
             typed_config:
-                "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-                common_tls_context:
-                    alpn_protocols: [ "h2,http/1.1" ]
-                    tls_certificates:
-                    - certificate_chain:
-                        filename: /etc/certs/cert.pem
-                      private_key:
-                        filename: /etc/certs/key.pem
-          
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                alpn_protocols: ["h2,http/1.1"]
+                tls_certificates:
+                  - certificate_chain:
+                      filename: /etc/certs/cert.pem
+                    private_key:
+                      filename: /etc/certs/key.pem
 
   clusters:
     - name: server_grpc
@@ -86,3 +90,21 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 
+    - name: svelte_grpc
+      connect_timeout: 0.25s
+      type: logical_dns
+      http2_protocol_options: {}
+      lb_policy: round_robin
+      load_assignment:
+        cluster_name: cluster_0
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: front
+                      port_value: 5000
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext

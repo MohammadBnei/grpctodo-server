@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  grpc-gen:
+    build:
+      dockerfile: ./proto/DockerfileGrpc
+      context: ./
+    volumes:
+      - ./proto:/gen/proto
+      - ./proto/go:/out/go
+      - ./proto/js:/out/js
+      - ./Makefile:/Makefile
+    command: bash -c "make clear && make golang && make js"
+    working_dir: /
+
