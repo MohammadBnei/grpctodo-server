@@ -29,7 +29,9 @@ export const itemWrapper = ({ title, description, closed }: ItemDto) => {
 
 export const getItems = async () => {
   const req = new GetItemsRequest();
-  const response = await todoServer.getItems(req, {});
+  const response = await todoServer.getItems(req, {
+    'Authorization': 'Bearer potatoes'
+  });
 
   itemStore.set(response.getItemsList().map((item) => itemUnwrapper(item)))
 };
