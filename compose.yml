@@ -29,8 +29,8 @@ services:
       - ./dev/certs/api.grpctodo.dev+2.pem:/certs/cert.pem:ro
       - ./svelte:/app/
       - ./proto/js:/app/src/proto
-    # command: nr dev
-    stdin_open: true
+    command: bash -c "ni && nr dev"
+    # stdin_open: true
 
   postgres:
     image: postgres

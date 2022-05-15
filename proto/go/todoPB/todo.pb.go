@@ -7,9 +7,9 @@
 package todoPB
 
 import (
+	empty "github.com/golang/protobuf/ptypes/empty"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 )
@@ -454,7 +454,7 @@ var file_todo_proto_goTypes = []interface{}{
 	(*GetItemsResponse)(nil),  // 4: server.GetItemsResponse
 	(*GetItemResponse)(nil),   // 5: server.GetItemResponse
 	(*GeneralResponse)(nil),   // 6: server.GeneralResponse
-	(*emptypb.Empty)(nil),     // 7: google.protobuf.Empty
+	(*empty.Empty)(nil),       // 7: google.protobuf.Empty
 }
 var file_todo_proto_depIdxs = []int32{
 	2, // 0: server.CreateItemRequest.item:type_name -> server.Item
