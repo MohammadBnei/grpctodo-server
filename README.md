@@ -44,3 +44,51 @@ Postgres
 ## Certificates
 
 As gRPC heavily relies on http/2 and its multiplexing abilities, we need to create valid certificates to upgrade the connection to https. This can easily be done with mkcert, which creates the certificates and the CA to authenticate them. For more informations, [click here](https://mkcert.org).
+
+To generate the appropriate files, open a terminal in the root directory of the project :
+
+```console
+mkcert grpctodo.dev localhost
+```
+
+This will create two files, the cert and the key. Move them to dev/certs/.
+
+And that's it for the certificates.
+
+## Docker-Compose
+
+We will be using docker compose to create 5 containers : 
+- grpc-gen (to generate the protobuf compiled files)
+- golang
+- svelte
+- envoy
+- postgres
+
+To initalize it, create a compose.yml file (in the base directory) and write in it :
+```yaml
+version: '3.9'
+
+services:
+```
+
+Let's start with the server
+
+## Golang
+
+Create the server directory, and inside it a Dockerfile. It will install all the dev depandancies :
+
+```Dockerfile
+FROM golang
+
+WORKDIR /go/src/github.com/$GITHUB_USERNAME/grpctodo/server
+
+RUN go install github.com/ramya-rao-a/go-outline@latest
+RUN go install golang.org/x/tools/gopls@latest
+RUN go install honnef.co/go/tools/cmd/staticcheck@latest
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+RUN go install github.com/silenceper/gowatch@latest
+```
+
+
+

@@ -6,10 +6,7 @@ services:
     build:
       dockerfile: ./server/Dockerfile
       context: ./
-    working_dir: /go/src/github.com/MohammadBnei/gRPC-web-tuto/server
     platform: linux/amd64
-    environment:
-      - GODEBUG=http2debug=1
     ports:
       - 4000:4000
     volumes:
