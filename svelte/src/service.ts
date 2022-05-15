@@ -38,13 +38,18 @@ export const getItems = async () => {
 
 
 export const createItem = async (newItem: ItemDto) => {
-  const req = new CreateItemRequest();
-  const itemDto = itemWrapper(newItem)
-  req.setItem(itemDto)
+  try {
+    const req = new CreateItemRequest();
+    const itemDto = itemWrapper(newItem)
+    req.setItem(itemDto)
 
-  const response = await todoServer.createItem(req, {});
+    const response = await todoServer.createItem(req, {});
 
-  itemStore.addItem(itemUnwrapper(response.getItem()))
+    itemStore.addItem(itemUnwrapper(response.getItem()))
+  }
+  catch (e) {
+    console.log({ e, message: e.message });
+  }
 };
 
 export const deleteItem = async (id: string) => {
