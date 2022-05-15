@@ -110,12 +110,11 @@ func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*
 	fmt.Println("CreateItem() called")
 	blankResponse := &todoPB.GetItemResponse{}
 
-	newItem := &domain.Item{
-		Title:       r.Item.Title,
-		Description: r.Item.Description,
-		Closed:      r.Item.Closed,
+	newItem, err := domain.NewItem(r.Item.Title, r.Item.Description)
+	if err != nil {
+		return blankResponse, err
 	}
-
+	
 	if result := s.DB.Create(&newItem); result.Error != nil {
 		fmt.Println(result.Error)
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())

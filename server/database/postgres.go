@@ -29,6 +29,7 @@ func NewPostgresConn() *gorm.DB {
 		log.Fatal("error opening Postgres : ", err)
 	}
 
+	// Synchronization of the model with the database
 	err = DB.AutoMigrate(&domain.Item{})
 	if err != nil {
 		log.Fatal("error migratiting Postgres : ", err)
