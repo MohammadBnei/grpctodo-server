@@ -8,9 +8,6 @@ module.exports = {
     daisyui: {
         themes: ["lemonade"],
     },
-    purge: {
-        content: ['./src/**/*.{html,js,svelte,ts}'],
-        enabled: production // disable purge in dev
-    },
+    content: ['./src/**/*.{html,js,svelte,ts}'],
 };
 

@@ -7,4 +7,36 @@ We implemented server reflection, so the services and messages are directly aval
 
 ![postman example](postman.jpg)
 
+You can also use [grpcul](https://github.com/fullstorydev/grpcurl), and use a curl like command to invoke the gRPC server :
+
+```console
+grpcurl localhost:4000 server.TodoService.GetItems
+# Response
+{
+  "items": [
+    {
+      "id": "4",
+      "title": "Envoy",
+      "description": "Create the envoy tutorial"
+    },
+    {
+      "id": "5",
+      "title": "Svelte",
+      "description": "Create the svelte tutorial"
+    },
+    {
+      "id": "6",
+      "title": "gRPC-Web",
+      "description": "Explain why we use grpc web"
+    },
+    {
+      "id": "7",
+      "title": "Server",
+      "description": "Create the server tutorial",
+      "closed": true
+    }
+  ]
+}
+```
+
 [Continue](/README.md#golang)

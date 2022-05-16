@@ -24,6 +24,7 @@ Once the docker file is ready, let's create the service in docker compose file (
     # For mac m1 users only
     # platform: linux/amd64
     ports:
+      # The local port on which the server will be avalaible
       - 4000:4000
     volumes:
       - ./dev/certs/grpctodo.dev+1-key.pem:/certs/key.pem:ro
