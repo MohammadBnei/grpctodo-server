@@ -12,4 +12,4 @@ This will create two files, the cert and the key. Move them to dev/certs/.
 
 And that's it for the certificates.
 
-[Continue](/Tutorial/README.md#certificate--images)
+[Continue](/README.md#certificate--images)
