@@ -1,12 +1,12 @@
 {
-  "name": "tmp",
+  "name": "grpctodo",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "watch:tailwind": "postcss public/tailwind.css -o public/index.css -w",
+    "watch:tailwind": "postcss public/tailwind.css",
     "build:tailwind": "cross-env NODE_ENV=production postcss public/tailwind.css -o public/index.css",
-    "dev": "concurrently \"rollup -c -w\" \"nr watch:tailwind\"",
+    "dev": "rollup -c -w ",
     "start": "sirv public --port 5000 --host 0.0.0.0 --http2 --cert /certs/cert.pem --key /certs/key.pem"
   },
   "devDependencies": {
