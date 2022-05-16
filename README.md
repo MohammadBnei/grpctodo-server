@@ -46,7 +46,6 @@ Postgres
 [DOCKER COMPOSE PART 1](/Tutorial/DockerCompose1.md)
 
 # Golang
-Let's start with the server
 
 [GOLANG INIT](/Tutorial/GolangInit.md)
 
@@ -66,13 +65,9 @@ Let's start with the server
 
 [ENVOY SERVICE](/Tutorial/EnvoyService.md)
 
-[ROUTER](/Tutorial/Router.md)
-
 [GRPC WEB](/Tutorial/GrpcWeb.md)
 
 # Svelte
-
-[DOCKER COMPOSE PART 3](/Tutorial/DockerCompose3.md)
 
 [SVELTE INIT](/Tutorial/SvelteInit.md)
 
@@ -82,4 +77,4 @@ Let's start with the server
 
 # Conclusion
 
-gRPC on the browser is now possible. It is a little complex to put in place, but once the foundation are set up it becomes a breeze to develop new functionalities, have a nice and secure bi-directionnal stream, backward and frontward compatibility... 
+gRPC on the browser is now possible. It is a little complex to put in place, but once the foundation are set up it becomes a breeze to develop new functionalities, have a nice and secure bi-directionnal stream, backward and forward compatibility... 

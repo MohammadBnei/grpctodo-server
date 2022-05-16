@@ -8,7 +8,9 @@ To generate the appropriate files, open a terminal in the root directory of the 
 mkcert grpctodo.dev localhost
 ```
 
-This will create two files, the cert and the key. Move them to dev/certs/.
+This will create two files, the cert and the key. Move them to dev/certs/. 
+
+*Verify the permissions on the certificates (specially the key). Add a read permission accordingly*
 
 And that's it for the certificates.
 

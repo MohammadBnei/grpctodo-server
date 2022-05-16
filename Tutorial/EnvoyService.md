@@ -44,10 +44,14 @@ static_resources:
                       routes:
                         # Tell envoy where to proxy the request
                         - match:
-                            prefix: "/"
+                            prefix: "/server/"
                           route:
                             # Cluster is the service that will handle the request
                             cluster: server_grpc
+                            prefix_rewrite: "/"
+                            timeout: 0s
+                            max_stream_duration:
+                              grpc_timeout_header_max: 0s
 
           # Add TLS support
           transport_socket:
@@ -55,6 +59,7 @@ static_resources:
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
               common_tls_context:
+                alpn_protocols: ["h2,http/1.1"]
                 tls_certificates:
                   - certificate_chain:
                       filename: /etc/certs/cert.pem
@@ -84,6 +89,39 @@ static_resources:
 
 ```
 Yml are tricky when it comes to indentation, so be careful.
+
+We will now create the fronte nd route, starting with the cluster :
+```yml
+    - name: svelte_grpc
+      connect_timeout: 0.25s
+      type: logical_dns
+      http2_protocol_options: {}
+      lb_policy: round_robin
+      load_assignment:
+        cluster_name: cluster_0
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: front
+                      port_value: 5000
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+```
+
+And configure the route :
+
+```Yml
+                      routes:
+                        # Server route ...
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: svelte_grpc
+```
 
 Add a new service in the compose.yml file :
 
