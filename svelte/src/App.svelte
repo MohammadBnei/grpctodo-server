@@ -3,7 +3,7 @@
   import CreateItem from "./lib/CreateItem.svelte";
   import Item from "./lib/Item.svelte";
   import { getItems } from "./service";
-  import { itemStore } from "./sotres";
+  import { itemStore } from "./store";
 
   onMount(getItems);
 </script>

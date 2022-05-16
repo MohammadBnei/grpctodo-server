@@ -1,6 +1,6 @@
 import { TodoServiceClient } from "./proto/TodoServiceClientPb";
 import { GetItemsRequest, CreateItemRequest, Item, GetItemRequest } from "./proto/todo_pb";
-import { itemStore } from "./sotres";
+import { itemStore } from "./store";
 
 const todoServer = new TodoServiceClient("/server");
 

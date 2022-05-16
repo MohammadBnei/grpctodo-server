@@ -4,8 +4,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "watch:tailwind": "postcss public/tailwind.css",
-    "build:tailwind": "cross-env NODE_ENV=production postcss public/tailwind.css -o public/index.css",
     "dev": "rollup -c -w ",
     "start": "sirv public --port 5000 --host 0.0.0.0 --http2 --cert /certs/cert.pem --key /certs/key.pem"
   },

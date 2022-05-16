@@ -1,4 +1,3 @@
-const production = !process.env.ROLLUP_WATCH;
 module.exports = {
     future: {
         purgeLayersByDefault: true,
