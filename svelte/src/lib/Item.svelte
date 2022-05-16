@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { ItemDto } from "../global";
-  import { closeItem, deleteItem } from "../service";
 
   export let item: ItemDto;
 </script>
@@ -13,11 +12,11 @@
     <p>{item.description}</p>
     <div class="card-actions justify-end">
       {#if !item.closed}
-        <button class="btn btn-info mx-2" on:click={() => closeItem(item.id)}
+        <button class="btn btn-info mx-2"
           >Close</button
         >
       {/if}
-      <button class="btn btn-warning" on:click={() => deleteItem(item.id)}
+      <button class="btn btn-warning"
         >Delete</button
       >
     </div>

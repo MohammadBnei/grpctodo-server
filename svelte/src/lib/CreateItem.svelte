@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { createItem } from "../service";
-
     let title = "";
     let description = "";
 
@@ -9,7 +7,6 @@
             return;
         }
 
-        await createItem({ title, description });
         title = "";
         description = "";
     };
