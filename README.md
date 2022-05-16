@@ -41,7 +41,7 @@ Postgres
 
 # Certificate & Images
 
-[CERTIFICATE](/Certificate.md)
+[CERTIFICATE](/Tutorial/Certificate.md)
 
 [DOCKER COMPOSE PART 1](/Tutorial/DockerCompose1.md)
 
