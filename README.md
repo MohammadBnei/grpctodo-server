@@ -43,7 +43,7 @@ Postgres
 
 [CERTIFICATE](/Tutorial/Certificate.md)
 
-[DOCKER COMPOSE PART 1](/Tutorial/DockerCompose1.md)
+[DOCKER COMPOSE](/Tutorial/DockerCompose1.md)
 
 # Golang
 
