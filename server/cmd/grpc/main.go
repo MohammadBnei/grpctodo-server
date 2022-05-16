@@ -36,30 +36,6 @@ func main() {
 
 	serverConfig := config.Config.ServerConfig
 
-	lis, err := net.Listen("tcp", "0.0.0.0:"+serverConfig.Port)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var grpcServer *grpc.Server
-	tlsStat := ""
-
-	tlsStat = "secure"
-	grpcServer = grpc.NewServer(
-		grpc.Creds(getServerTLS()),
-	)
-
-	todoPB.RegisterTodoServiceServer(grpcServer, &server.Server{DB: DB})
-	reflection.Register(grpcServer)
-
-	go func() {
-		log.Println(tlsStat, "gRPC Server Started on :"+serverConfig.Port)
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("failed to serve: %v", err)
-		}
-	}()
-
 	// Wait for Control C to exit
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
@@ -69,7 +45,6 @@ func main() {
 
 	// Stop the server
 	log.Println("stopping the server")
-	grpcServer.Stop()
 	log.Println("server stopped")
 
 }
