@@ -39,4 +39,8 @@ grpcurl localhost:4000 server.TodoService.GetItems
 }
 ```
 
+# Envoy
+
+To test with envoy, repeat the same steps as above but switch the url : localhost:4000 -> localhost:443
+
 [Continue](/README.md#golang)

@@ -64,7 +64,7 @@ Let's start with the server
 
 # Envoy
 
-[DOCKER COMPOSE PART 2](/Tutorial/DockerCompose2.md)
+[ENVOY SERVICE](/Tutorial/EnvoyService.md)
 
 [ROUTER](/Tutorial/Router.md)
 
