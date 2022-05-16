@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package server;
+
+option go_package = "./todoPB";
+
+message Item {
+    string id = 1;
+    string title = 2;
+    string description = 3;
+    bool closed = 4;
+}
+
+message General {
+    string message = 1;
+}
+
+message GetItemsResponse {
+    repeated Item items = 1;
+}
+
+message GetItemResponse {
+    Item item = 1;
+}
+
+message CreateItemRequest {
+    string title = 1;
+    string description = 2;
+}
+
+message GetItemRequest {
+    string id = 1;
+}
+
+
+service TodoService {
+    rpc GetItems (General) returns (GetItemsResponse);
+
+    rpc CreateItem (CreateItemRequest) returns (GetItemResponse);
+
+    rpc CloseItem (GetItemRequest) returns (GetItemResponse);
+
+    rpc DeleteItem(GetItemRequest) returns (General);
+}

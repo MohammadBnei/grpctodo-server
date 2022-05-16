@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { createItem } from "../service";
+
     let title = "";
     let description = "";
 
@@ -6,7 +8,7 @@
         if (!title || !description) {
             return;
         }
-
+        await createItem({ title, description });
         title = "";
         description = "";
     };
