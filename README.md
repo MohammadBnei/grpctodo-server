@@ -82,4 +82,4 @@ Let's start with the server
 
 # Conclusion
 
-The gR
+gRPC on the browser is now possible. It is a little complex to put in place, but once the foundation are set up it becomes a breeze to develop new functionalities, have a nice and secure bi-directionnal stream, backward and frontward compatibility... 
