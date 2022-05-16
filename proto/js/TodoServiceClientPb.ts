@@ -13,7 +13,6 @@
 
 import * as grpcWeb from 'grpc-web';
 
-import * as google_protobuf_empty_pb from 'google-protobuf/google/protobuf/empty_pb';
 import * as todo_pb from './todo_pb';
 
 
@@ -39,26 +38,26 @@ export class TodoServiceClient {
   methodDescriptorGetItems = new grpcWeb.MethodDescriptor(
     '/server.TodoService/GetItems',
     grpcWeb.MethodType.UNARY,
-    google_protobuf_empty_pb.Empty,
+    todo_pb.General,
     todo_pb.GetItemsResponse,
-    (request: google_protobuf_empty_pb.Empty) => {
+    (request: todo_pb.General) => {
       return request.serializeBinary();
     },
     todo_pb.GetItemsResponse.deserializeBinary
   );
 
   getItems(
-    request: google_protobuf_empty_pb.Empty,
+    request: todo_pb.General,
     metadata: grpcWeb.Metadata | null): Promise<todo_pb.GetItemsResponse>;
 
   getItems(
-    request: google_protobuf_empty_pb.Empty,
+    request: todo_pb.General,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
                response: todo_pb.GetItemsResponse) => void): grpcWeb.ClientReadableStream<todo_pb.GetItemsResponse>;
 
   getItems(
-    request: google_protobuf_empty_pb.Empty,
+    request: todo_pb.General,
     metadata: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
                response: todo_pb.GetItemsResponse) => void) {
@@ -77,49 +76,6 @@ export class TodoServiceClient {
     request,
     metadata || {},
     this.methodDescriptorGetItems);
-  }
-
-  methodDescriptorGetItem = new grpcWeb.MethodDescriptor(
-    '/server.TodoService/GetItem',
-    grpcWeb.MethodType.UNARY,
-    todo_pb.GetItemRequest,
-    todo_pb.GetItemResponse,
-    (request: todo_pb.GetItemRequest) => {
-      return request.serializeBinary();
-    },
-    todo_pb.GetItemResponse.deserializeBinary
-  );
-
-  getItem(
-    request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null): Promise<todo_pb.GetItemResponse>;
-
-  getItem(
-    request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null,
-    callback: (err: grpcWeb.RpcError,
-               response: todo_pb.GetItemResponse) => void): grpcWeb.ClientReadableStream<todo_pb.GetItemResponse>;
-
-  getItem(
-    request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null,
-    callback?: (err: grpcWeb.RpcError,
-               response: todo_pb.GetItemResponse) => void) {
-    if (callback !== undefined) {
-      return this.client_.rpcCall(
-        this.hostname_ +
-          '/server.TodoService/GetItem',
-        request,
-        metadata || {},
-        this.methodDescriptorGetItem,
-        callback);
-    }
-    return this.client_.unaryCall(
-    this.hostname_ +
-      '/server.TodoService/GetItem',
-    request,
-    metadata || {},
-    this.methodDescriptorGetItem);
   }
 
   methodDescriptorCreateItem = new grpcWeb.MethodDescriptor(
@@ -208,75 +164,32 @@ export class TodoServiceClient {
     this.methodDescriptorCloseItem);
   }
 
-  methodDescriptorOpenItem = new grpcWeb.MethodDescriptor(
-    '/server.TodoService/OpenItem',
-    grpcWeb.MethodType.UNARY,
-    todo_pb.GetItemRequest,
-    todo_pb.GetItemResponse,
-    (request: todo_pb.GetItemRequest) => {
-      return request.serializeBinary();
-    },
-    todo_pb.GetItemResponse.deserializeBinary
-  );
-
-  openItem(
-    request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null): Promise<todo_pb.GetItemResponse>;
-
-  openItem(
-    request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null,
-    callback: (err: grpcWeb.RpcError,
-               response: todo_pb.GetItemResponse) => void): grpcWeb.ClientReadableStream<todo_pb.GetItemResponse>;
-
-  openItem(
-    request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null,
-    callback?: (err: grpcWeb.RpcError,
-               response: todo_pb.GetItemResponse) => void) {
-    if (callback !== undefined) {
-      return this.client_.rpcCall(
-        this.hostname_ +
-          '/server.TodoService/OpenItem',
-        request,
-        metadata || {},
-        this.methodDescriptorOpenItem,
-        callback);
-    }
-    return this.client_.unaryCall(
-    this.hostname_ +
-      '/server.TodoService/OpenItem',
-    request,
-    metadata || {},
-    this.methodDescriptorOpenItem);
-  }
-
   methodDescriptorDeleteItem = new grpcWeb.MethodDescriptor(
     '/server.TodoService/DeleteItem',
     grpcWeb.MethodType.UNARY,
     todo_pb.GetItemRequest,
-    todo_pb.GeneralResponse,
+    todo_pb.General,
     (request: todo_pb.GetItemRequest) => {
       return request.serializeBinary();
     },
-    todo_pb.GeneralResponse.deserializeBinary
+    todo_pb.General.deserializeBinary
   );
 
   deleteItem(
     request: todo_pb.GetItemRequest,
-    metadata: grpcWeb.Metadata | null): Promise<todo_pb.GeneralResponse>;
+    metadata: grpcWeb.Metadata | null): Promise<todo_pb.General>;
 
   deleteItem(
     request: todo_pb.GetItemRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: todo_pb.GeneralResponse) => void): grpcWeb.ClientReadableStream<todo_pb.GeneralResponse>;
+               response: todo_pb.General) => void): grpcWeb.ClientReadableStream<todo_pb.General>;
 
   deleteItem(
     request: todo_pb.GetItemRequest,
     metadata: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: todo_pb.GeneralResponse) => void) {
+               response: todo_pb.General) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +

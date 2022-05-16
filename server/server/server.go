@@ -6,12 +6,11 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/MohammadBnei/gRPC-web-tuto/server/domain"
-	"github.com/MohammadBnei/gRPC-web-tuto/server/todoPB"
+	"github.com/MohammadBnei/grpctodo/server/domain"
+	"github.com/MohammadBnei/grpctodo/server/todoPB"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"gorm.io/gorm"
 )
 
@@ -22,9 +21,8 @@ type Server struct {
 }
 
 var blankItems = &todoPB.GetItemsResponse{}
-var blankItem = &todoPB.GetItemResponse{}
 
-func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {
+func (s *Server) GetItems(ctx context.Context, r *todoPB.General) (*todoPB.GetItemsResponse, error) {
 	fmt.Println("GetItems() called")
 
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -59,32 +57,10 @@ func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetIte
 
 }
 
-func (s *Server) GetItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GetItemResponse, error) {
-	fmt.Println("GetItem() called")
-
-	var item domain.Item
-
-	if result := s.DB.First(&item, r.Id); result.Error != nil {
-		fmt.Println(result.Error)
-		return blankItem, status.Error(codes.Internal, result.Error.Error())
-	}
-	fmt.Println(item)
-
-	return &todoPB.GetItemResponse{
-		Item: &todoPB.Item{
-			Id:          fmt.Sprintf("%d", item.Id),
-			Title:       item.Title,
-			Description: item.Description,
-			Closed:      item.Closed,
-		},
-	}, nil
-
-}
-
-func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GeneralResponse, error) {
+func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.General, error) {
 	fmt.Println("DeleteItem() called")
 
-	blankResponse := &todoPB.GeneralResponse{}
+	blankResponse := &todoPB.General{}
 
 	var item domain.Item
 
@@ -100,7 +76,7 @@ func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*tod
 	// Delete that item
 	s.DB.Delete(&item)
 
-	return &todoPB.GeneralResponse{
+	return &todoPB.General{
 		Message: "Item deleted",
 	}, nil
 
@@ -114,7 +90,7 @@ func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*
 	if err != nil {
 		return blankResponse, err
 	}
-	
+
 	if result := s.DB.Create(&newItem); result.Error != nil {
 		fmt.Println(result.Error)
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
@@ -149,37 +125,6 @@ func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todo
 
 	// Close that item
 	if result := s.DB.Model(&item).UpdateColumn("closed", true); result.Error != nil {
-		fmt.Println(result.Error)
-		return blankResponse, status.Error(codes.Internal, result.Error.Error())
-	}
-
-	return &todoPB.GetItemResponse{
-		Item: &todoPB.Item{
-			Id:          fmt.Sprintf("%d", item.Id),
-			Title:       item.Title,
-			Description: item.Description,
-			Closed:      item.Closed,
-		},
-	}, nil
-}
-func (s *Server) OpenItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GetItemResponse, error) {
-	fmt.Println("OpenItem() called")
-
-	blankResponse := &todoPB.GetItemResponse{}
-
-	if r.Id == "" {
-		return blankResponse, status.Error(codes.Internal, "no id provided")
-	}
-
-	var item domain.Item
-
-	if result := s.DB.First(&item, r.Id); result.Error != nil {
-		fmt.Println(result.Error)
-		return blankResponse, status.Error(codes.Internal, result.Error.Error())
-	}
-
-	// Close that item
-	if result := s.DB.Model(&item).UpdateColumn("closed", false); result.Error != nil {
 		fmt.Println(result.Error)
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}

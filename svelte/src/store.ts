@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store'
-import type { ItemDto } from './service'
+import type { ItemDto } from './global';
 
 const createItemsStore = () => {
     const store = writable<ItemDto[]>([]);

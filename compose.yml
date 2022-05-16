@@ -1,38 +1,32 @@
 version: '3.9'
 
 services:
-
   server:
     build:
       dockerfile: ./server/Dockerfile
+      # We set the context to the base direcotry to inject the certificates and the proto files
       context: ./
-    platform: linux/amd64
-    ports:
-      - 4000:4000
+    # For mac m1 users only
+    # platform: linux/amd64
     volumes:
-      - ./dev/certs/api.grpctodo.dev+2-key.pem:/certs/key.pem:ro
-      - ./dev/certs/api.grpctodo.dev+2.pem:/certs/cert.pem:ro
-      - ./server:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server
-      - ./proto/go/todoPB:/go/src/github.com/MohammadBnei/gRPC-web-tuto/server/todoPB:ro
+      - ./dev/certs/grpctodo.dev+1-key.pem:/certs/key.pem:ro
+      - ./dev/certs/grpctodo.dev+1.pem:/certs/cert.pem:ro
+      - ./server:/go/src/github.com/MohammadBnei/grpctodo/server
+      - ./proto/go/todoPB:/go/src/github.com/MohammadBnei/grpctodo/server/todoPB:ro
     command: gowatch
 
   front:
-    build:
-      dockerfile: ./svelte/Dockerfile
-      context: ./
-    working_dir: /app
-    volumes:
-      - ./dev/certs/api.grpctodo.dev+2-key.pem:/certs/key.pem:ro
-      - ./dev/certs/api.grpctodo.dev+2.pem:/certs/cert.pem:ro
+      image: node:16
+      working_dir: /app
+      volumes:
+      - ./dev/certs/grpctodo.dev+1-key.pem:/certs/key.pem:ro
+      - ./dev/certs/grpctodo.dev+1.pem:/certs/cert.pem:ro
       - ./svelte:/app/
       - ./proto/js:/app/src/proto
-    command: bash -c "ni && nr dev"
-    # stdin_open: true
+      command: npm run dev
 
   postgres:
     image: postgres
-    ports:
-      - 5432:5432
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
@@ -42,9 +36,9 @@ services:
     image: envoyproxy/envoy:v1.22.0
     volumes:
       - ./dev/envoy.yml:/etc/envoy/envoy.yml
-      - ./dev/certs/api.grpctodo.dev+2-key.pem:/etc/certs/key.pem
-      - ./dev/certs/api.grpctodo.dev+2.pem:/etc/certs/cert.pem
+      - ./dev/certs/grpctodo.dev+1-key.pem:/etc/certs/key.pem:ro
+      - ./dev/certs/grpctodo.dev+1.pem:/etc/certs/cert.pem:ro
     ports:
       - 443:8081
       - 9901:9901
-    command: envoy -c /etc/envoy/envoy.yml -l trace
+    command: envoy -c /etc/envoy/envoy.yml

@@ -6,10 +6,10 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/MohammadBnei/gRPC-web-tuto/server/config"
-	"github.com/MohammadBnei/gRPC-web-tuto/server/database"
-	"github.com/MohammadBnei/gRPC-web-tuto/server/server"
-	"github.com/MohammadBnei/gRPC-web-tuto/server/todoPB"
+	"github.com/MohammadBnei/grpctodo/server/config"
+	"github.com/MohammadBnei/grpctodo/server/database"
+	"github.com/MohammadBnei/grpctodo/server/server"
+	"github.com/MohammadBnei/grpctodo/server/todoPB"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -37,6 +37,7 @@ func main() {
 	serverConfig := config.Config.ServerConfig
 
 	lis, err := net.Listen("tcp", "0.0.0.0:"+serverConfig.Port)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,15 +45,10 @@ func main() {
 	var grpcServer *grpc.Server
 	tlsStat := ""
 
-	if serverConfig.TLSEnabled {
-		tlsStat = "secure"
-		grpcServer = grpc.NewServer(
-			grpc.Creds(getServerTLS()),
-		)
-	} else {
-		tlsStat = "insecure"
-		grpcServer = grpc.NewServer()
-	}
+	tlsStat = "secure"
+	grpcServer = grpc.NewServer(
+		grpc.Creds(getServerTLS()),
+	)
 
 	todoPB.RegisterTodoServiceServer(grpcServer, &server.Server{DB: DB})
 	reflection.Register(grpcServer)
@@ -75,4 +71,5 @@ func main() {
 	log.Println("stopping the server")
 	grpcServer.Stop()
 	log.Println("server stopped")
+
 }

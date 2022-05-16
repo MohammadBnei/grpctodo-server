@@ -8,7 +8,6 @@ package todoPB
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -23,12 +22,10 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TodoServiceClient interface {
-	GetItems(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error)
-	GetItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
+	GetItems(ctx context.Context, in *General, opts ...grpc.CallOption) (*GetItemsResponse, error)
 	CreateItem(ctx context.Context, in *CreateItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
 	CloseItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
-	OpenItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
-	DeleteItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GeneralResponse, error)
+	DeleteItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*General, error)
 }
 
 type todoServiceClient struct {
@@ -39,18 +36,9 @@ func NewTodoServiceClient(cc grpc.ClientConnInterface) TodoServiceClient {
 	return &todoServiceClient{cc}
 }
 
-func (c *todoServiceClient) GetItems(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error) {
+func (c *todoServiceClient) GetItems(ctx context.Context, in *General, opts ...grpc.CallOption) (*GetItemsResponse, error) {
 	out := new(GetItemsResponse)
 	err := c.cc.Invoke(ctx, "/server.TodoService/GetItems", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *todoServiceClient) GetItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error) {
-	out := new(GetItemResponse)
-	err := c.cc.Invoke(ctx, "/server.TodoService/GetItem", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,17 +63,8 @@ func (c *todoServiceClient) CloseItem(ctx context.Context, in *GetItemRequest, o
 	return out, nil
 }
 
-func (c *todoServiceClient) OpenItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error) {
-	out := new(GetItemResponse)
-	err := c.cc.Invoke(ctx, "/server.TodoService/OpenItem", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *todoServiceClient) DeleteItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GeneralResponse, error) {
-	out := new(GeneralResponse)
+func (c *todoServiceClient) DeleteItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*General, error) {
+	out := new(General)
 	err := c.cc.Invoke(ctx, "/server.TodoService/DeleteItem", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -97,12 +76,10 @@ func (c *todoServiceClient) DeleteItem(ctx context.Context, in *GetItemRequest, 
 // All implementations must embed UnimplementedTodoServiceServer
 // for forward compatibility
 type TodoServiceServer interface {
-	GetItems(context.Context, *empty.Empty) (*GetItemsResponse, error)
-	GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
+	GetItems(context.Context, *General) (*GetItemsResponse, error)
 	CreateItem(context.Context, *CreateItemRequest) (*GetItemResponse, error)
 	CloseItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
-	OpenItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
-	DeleteItem(context.Context, *GetItemRequest) (*GeneralResponse, error)
+	DeleteItem(context.Context, *GetItemRequest) (*General, error)
 	mustEmbedUnimplementedTodoServiceServer()
 }
 
@@ -110,11 +87,8 @@ type TodoServiceServer interface {
 type UnimplementedTodoServiceServer struct {
 }
 
-func (UnimplementedTodoServiceServer) GetItems(context.Context, *empty.Empty) (*GetItemsResponse, error) {
+func (UnimplementedTodoServiceServer) GetItems(context.Context, *General) (*GetItemsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetItems not implemented")
-}
-func (UnimplementedTodoServiceServer) GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetItem not implemented")
 }
 func (UnimplementedTodoServiceServer) CreateItem(context.Context, *CreateItemRequest) (*GetItemResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateItem not implemented")
@@ -122,10 +96,7 @@ func (UnimplementedTodoServiceServer) CreateItem(context.Context, *CreateItemReq
 func (UnimplementedTodoServiceServer) CloseItem(context.Context, *GetItemRequest) (*GetItemResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CloseItem not implemented")
 }
-func (UnimplementedTodoServiceServer) OpenItem(context.Context, *GetItemRequest) (*GetItemResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method OpenItem not implemented")
-}
-func (UnimplementedTodoServiceServer) DeleteItem(context.Context, *GetItemRequest) (*GeneralResponse, error) {
+func (UnimplementedTodoServiceServer) DeleteItem(context.Context, *GetItemRequest) (*General, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteItem not implemented")
 }
 func (UnimplementedTodoServiceServer) mustEmbedUnimplementedTodoServiceServer() {}
@@ -142,7 +113,7 @@ func RegisterTodoServiceServer(s grpc.ServiceRegistrar, srv TodoServiceServer) {
 }
 
 func _TodoService_GetItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(General)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -154,25 +125,7 @@ func _TodoService_GetItems_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/server.TodoService/GetItems",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TodoServiceServer).GetItems(ctx, req.(*empty.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TodoService_GetItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetItemRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TodoServiceServer).GetItem(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/server.TodoService/GetItem",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TodoServiceServer).GetItem(ctx, req.(*GetItemRequest))
+		return srv.(TodoServiceServer).GetItems(ctx, req.(*General))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -213,24 +166,6 @@ func _TodoService_CloseItem_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TodoService_OpenItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetItemRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TodoServiceServer).OpenItem(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/server.TodoService/OpenItem",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TodoServiceServer).OpenItem(ctx, req.(*GetItemRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _TodoService_DeleteItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetItemRequest)
 	if err := dec(in); err != nil {
@@ -261,20 +196,12 @@ var TodoService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TodoService_GetItems_Handler,
 		},
 		{
-			MethodName: "GetItem",
-			Handler:    _TodoService_GetItem_Handler,
-		},
-		{
 			MethodName: "CreateItem",
 			Handler:    _TodoService_CreateItem_Handler,
 		},
 		{
 			MethodName: "CloseItem",
 			Handler:    _TodoService_CloseItem_Handler,
-		},
-		{
-			MethodName: "OpenItem",
-			Handler:    _TodoService_OpenItem_Handler,
 		},
 		{
 			MethodName: "DeleteItem",

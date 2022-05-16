@@ -3,7 +3,7 @@ version: '3.9'
 services:
   grpc-gen:
     build:
-      dockerfile: ./proto/DockerfileGrpc
+      dockerfile: ./proto/Dockerfile
       context: ./
     volumes:
       - ./proto:/gen/proto

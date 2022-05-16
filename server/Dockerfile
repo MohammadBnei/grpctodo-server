@@ -1,6 +1,6 @@
 FROM golang
 
-WORKDIR /go/src/github.com/MohammadBnei/gRPC-web-tuto/server
+WORKDIR /go/src/github.com/MohammadBnei/grpctodo/server
 
 RUN go install github.com/ramya-rao-a/go-outline@latest
 RUN go install golang.org/x/tools/gopls@latest

@@ -12,10 +12,8 @@ var jspb = require('google-protobuf');
 var goog = jspb;
 var global = Function('return this')();
 
-var google_protobuf_empty_pb = require('google-protobuf/google/protobuf/empty_pb.js');
-goog.object.extend(proto, google_protobuf_empty_pb);
 goog.exportSymbol('proto.server.CreateItemRequest', null, global);
-goog.exportSymbol('proto.server.GeneralResponse', null, global);
+goog.exportSymbol('proto.server.General', null, global);
 goog.exportSymbol('proto.server.GetItemRequest', null, global);
 goog.exportSymbol('proto.server.GetItemResponse', null, global);
 goog.exportSymbol('proto.server.GetItemsRequest', null, global);
@@ -157,16 +155,16 @@ if (goog.DEBUG && !COMPILED) {
  * @extends {jspb.Message}
  * @constructor
  */
-proto.server.GeneralResponse = function(opt_data) {
+proto.server.General = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.server.GeneralResponse, jspb.Message);
+goog.inherits(proto.server.General, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
   /**
    * @public
    * @override
    */
-  proto.server.GeneralResponse.displayName = 'proto.server.GeneralResponse';
+  proto.server.General.displayName = 'proto.server.General';
 }
 
 
@@ -1126,8 +1124,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.server.GeneralResponse.prototype.toObject = function(opt_includeInstance) {
-  return proto.server.GeneralResponse.toObject(opt_includeInstance, this);
+proto.server.General.prototype.toObject = function(opt_includeInstance) {
+  return proto.server.General.toObject(opt_includeInstance, this);
 };
 
 
@@ -1136,11 +1134,11 @@ proto.server.GeneralResponse.prototype.toObject = function(opt_includeInstance) 
  * @param {boolean|undefined} includeInstance Deprecated. Whether to include
  *     the JSPB instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.server.GeneralResponse} msg The msg instance to transform.
+ * @param {!proto.server.General} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.server.GeneralResponse.toObject = function(includeInstance, msg) {
+proto.server.General.toObject = function(includeInstance, msg) {
   var f, obj = {
     message: jspb.Message.getFieldWithDefault(msg, 1, "")
   };
@@ -1156,23 +1154,23 @@ proto.server.GeneralResponse.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.server.GeneralResponse}
+ * @return {!proto.server.General}
  */
-proto.server.GeneralResponse.deserializeBinary = function(bytes) {
+proto.server.General.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.server.GeneralResponse;
-  return proto.server.GeneralResponse.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.server.General;
+  return proto.server.General.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.server.GeneralResponse} msg The message object to deserialize into.
+ * @param {!proto.server.General} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.server.GeneralResponse}
+ * @return {!proto.server.General}
  */
-proto.server.GeneralResponse.deserializeBinaryFromReader = function(msg, reader) {
+proto.server.General.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -1196,9 +1194,9 @@ proto.server.GeneralResponse.deserializeBinaryFromReader = function(msg, reader)
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.server.GeneralResponse.prototype.serializeBinary = function() {
+proto.server.General.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.server.GeneralResponse.serializeBinaryToWriter(this, writer);
+  proto.server.General.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -1206,11 +1204,11 @@ proto.server.GeneralResponse.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.server.GeneralResponse} message
+ * @param {!proto.server.General} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.server.GeneralResponse.serializeBinaryToWriter = function(message, writer) {
+proto.server.General.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getMessage();
   if (f.length > 0) {
@@ -1226,16 +1224,16 @@ proto.server.GeneralResponse.serializeBinaryToWriter = function(message, writer)
  * optional string message = 1;
  * @return {string}
  */
-proto.server.GeneralResponse.prototype.getMessage = function() {
+proto.server.General.prototype.getMessage = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
 };
 
 
 /**
  * @param {string} value
- * @return {!proto.server.GeneralResponse} returns this
+ * @return {!proto.server.General} returns this
  */
-proto.server.GeneralResponse.prototype.setMessage = function(value) {
+proto.server.General.prototype.setMessage = function(value) {
   return jspb.Message.setProto3StringField(this, 1, value);
 };
 

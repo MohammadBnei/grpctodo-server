@@ -6,8 +6,6 @@ golang:
 	protoc -I /gen/proto --proto_path=/gen/proto todo.proto \
 		--go-grpc_out /out/go --go_out /out/go 
 				
-	protoc-go-inject-tag -input="/out/go/**/*.pb.go"
-
 clear:
 	rm -rf /out/go/*
 	rm -rf /out/js/*

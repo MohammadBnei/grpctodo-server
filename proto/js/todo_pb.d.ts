@@ -1,6 +1,5 @@
 import * as jspb from 'google-protobuf'
 
-import * as google_protobuf_empty_pb from 'google-protobuf/google/protobuf/empty_pb';
 
 
 export class GetItemsRequest extends jspb.Message {
@@ -129,19 +128,19 @@ export namespace GetItemResponse {
   }
 }
 
-export class GeneralResponse extends jspb.Message {
+export class General extends jspb.Message {
   getMessage(): string;
-  setMessage(value: string): GeneralResponse;
+  setMessage(value: string): General;
 
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GeneralResponse.AsObject;
-  static toObject(includeInstance: boolean, msg: GeneralResponse): GeneralResponse.AsObject;
-  static serializeBinaryToWriter(message: GeneralResponse, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GeneralResponse;
-  static deserializeBinaryFromReader(message: GeneralResponse, reader: jspb.BinaryReader): GeneralResponse;
+  toObject(includeInstance?: boolean): General.AsObject;
+  static toObject(includeInstance: boolean, msg: General): General.AsObject;
+  static serializeBinaryToWriter(message: General, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): General;
+  static deserializeBinaryFromReader(message: General, reader: jspb.BinaryReader): General;
 }
 
-export namespace GeneralResponse {
+export namespace General {
   export type AsObject = {
     message: string,
   }

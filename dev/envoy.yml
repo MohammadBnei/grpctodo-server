@@ -1,13 +1,15 @@
 admin:
   address:
     socket_address: { address: 0.0.0.0, port_value: 9901 }
-layered_runtime:
-  layers:
-    - name: disable_apple_dns
-      static_layer:
-        envoy.restart_features.use_apple_api_for_dns_lookups: false
+# For mac only
+# layered_runtime:
+#   layers:
+#     - name: disable_apple_dns
+#       static_layer:
+#         envoy.restart_features.use_apple_api_for_dns_lookups: false
 
 static_resources:
+  # Listeners handle the exposition of our proxy
   listeners:
     - name: listener_0
       address:
@@ -21,28 +23,29 @@ static_resources:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 codec_type: auto
                 stat_prefix: todo_service
+
                 http_filters:
                   - name: envoy.filters.http.grpc_web
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
-                  - name: envoy.filters.http.cors
-                    typed_config:
-                      "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
                 route_config:
-                  name: my_first_route
+                  name: server_route
                   virtual_hosts:
-                    - name: direct_response_service
+                    - name: grpc_server
                       domains:
                         - "*"
                       routes:
+                        # Tell envoy where to proxy the request
                         - match:
                             prefix: "/server/"
                           route:
-                            prefix_rewrite: "/"
+                            # Cluster is the service that will handle the request
                             cluster: server_grpc
+                            prefix_rewrite: "/"
                             timeout: 0s
                             max_stream_duration:
                               grpc_timeout_header_max: 0s
@@ -50,14 +53,8 @@ static_resources:
                             prefix: "/"
                           route:
                             cluster: svelte_grpc
-                      cors:
-                        allow_origin_string_match:
-                          - prefix: "*"
-                        allow_methods: GET, PUT, DELETE, POST, OPTIONS
-                        allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout
-                        max_age: "1728000"
-                        expose_headers: grpc-status,grpc-message
 
+          # Add TLS support
           transport_socket:
             name: envoy.transport_sockets.tls
             typed_config:
@@ -83,6 +80,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
+                      # Docker compose network address
                       address: server
                       port_value: 4000
       transport_socket:

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/MohammadBnei/gRPC-web-tuto/server/config"
-	"github.com/MohammadBnei/gRPC-web-tuto/server/domain"
+	"github.com/MohammadBnei/grpctodo/server/config"
+	"github.com/MohammadBnei/grpctodo/server/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
