@@ -11,7 +11,7 @@ Once the backend part is done, we will develop the frontend with svelte. Enforce
 
 ## Prerequesites
 
-- [mkcert](https://mkcert.org)
+- [mkcert](https://github.com/FiloSottile/mkcert)
 - [docker](https://www.docker.com/get-started/) & [docker-compose](https://docs.docker.com/compose/)
 - envoy (docker or local)
 
@@ -39,56 +39,26 @@ Envoy
 
 Postgres
 
-# Tutorial
+# Certificate & Images
 
-## Certificates
+[CERTIFICATE](/Certificate.md)
 
-As gRPC heavily relies on http/2 and its multiplexing abilities, we need to create valid certificates to upgrade the connection to https. This can easily be done with mkcert, which creates the certificates and the CA to authenticate them. For more informations, [click here](https://mkcert.org).
+[DOCKER COMPOSE PART 1](/Tutorial/DockerCompose1.md)
 
-To generate the appropriate files, open a terminal in the root directory of the project :
-
-```console
-mkcert grpctodo.dev localhost
-```
-
-This will create two files, the cert and the key. Move them to dev/certs/.
-
-And that's it for the certificates.
-
-## Docker-Compose
-
-We will be using docker compose to create 5 containers : 
-- grpc-gen (to generate the protobuf compiled files)
-- golang
-- svelte
-- envoy
-- postgres
-
-To initalize it, create a compose.yml file (in the base directory) and write in it :
-```yaml
-version: '3.9'
-
-services:
-```
-
+# Golang
 Let's start with the server
 
-## Golang
+[GOLANG INIT](/Tutorial/GolangInit.md)
 
-Create the server directory, and inside it a Dockerfile. It will install all the dev depandancies :
+[CONFIG](/Tutorial/Config.md)
 
-```Dockerfile
-FROM golang
+[DATABASE](/Tutorial/Database.md)
 
-WORKDIR /go/src/github.com/$GITHUB_USERNAME/grpctodo/server
+[START](/Tutorial/TryDB.md)
 
-RUN go install github.com/ramya-rao-a/go-outline@latest
-RUN go install golang.org/x/tools/gopls@latest
-RUN go install honnef.co/go/tools/cmd/staticcheck@latest
-RUN go install github.com/go-delve/delve/cmd/dlv@latest
+[GRPC](/Tutorial/Grpc.md)
 
-RUN go install github.com/silenceper/gowatch@latest
-```
+[SERVER](/Tutorial/Server.md)
 
-
+[REAL START](/Tutorial/RStart.md)
 

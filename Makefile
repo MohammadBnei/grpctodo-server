@@ -1,11 +1,9 @@
 
-FLAGS=-I /gen/proto --proto_path=/gen/proto todo.proto
-
 gen:
 	docker-compose -f compose-gen.yml up 
 
 golang:
-	protoc $(FLAGS) \
+	protoc -I /gen/proto --proto_path=/gen/proto todo.proto \
 		--go-grpc_out /out/go --go_out /out/go 
 				
 	protoc-go-inject-tag -input="/out/go/**/*.pb.go"
