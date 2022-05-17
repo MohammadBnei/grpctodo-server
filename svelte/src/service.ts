@@ -1,5 +1,5 @@
 import { TodoServiceClient } from "./proto/TodoServiceClientPb";
-import { GetItemsRequest, CreateItemRequest, Item, GetItemRequest } from "./proto/todo_pb";
+import { GetItemsRequest, CreateItemRequest, Item, GetItemRequest, StreamResponse } from "./proto/todo_pb";
 import { itemStore } from "./store";
 
 const todoServer = new TodoServiceClient("/server");
@@ -27,52 +27,66 @@ export const itemWrapper = ({ title, description, closed }: ItemDto) => {
   return itemWrapped
 };
 
+export const itemStream = () => {
+  const req = new GetItemsRequest();
+  const stream = todoServer.getItemsStream(req, {})
+  stream.on("data", function (response) {
+    const [type, item] = [response.getType(), itemUnwrapper(response.getItem())]
+    console.log({type})
+    switch (type) {
+      case StreamResponse.TYPE.CREATED:
+        itemStore.addItem(item)
+        break;
+      case StreamResponse.TYPE.UPDATED:
+        itemStore.updateItem(item)
+        break;
+      case StreamResponse.TYPE.DELETED:
+        itemStore.removeItem(item.id)
+        break;
+    }
+  });
+
+  stream.on("error", (err) => console.log({ err }));
+
+  return stream.cancel;
+}
+
 export const getItems = async () => {
   const req = new GetItemsRequest();
   const response = await todoServer.getItems(req, {
     'Authorization': 'Bearer potatoes'
   });
 
-  itemStore.set(response.getItemsList().map((item) => itemUnwrapper(item)))
+  // itemStore.set(response.getItemsList().map((item) => itemUnwrapper(item)))
 };
 
 
-export const createItem = async (newItem: ItemDto) => {
-  try {
-    const req = new CreateItemRequest();
-    const itemDto = itemWrapper(newItem)
-    req.setItem(itemDto)
+export const createItem = (newItem: ItemDto) => {
+  const req = new CreateItemRequest();
+  const itemDto = itemWrapper(newItem)
+  req.setItem(itemDto)
 
-    const response = await todoServer.createItem(req, {});
-
-    itemStore.addItem(itemUnwrapper(response.getItem()))
-  }
-  catch (e) {
-    console.log({ e, message: e.message });
-  }
+  todoServer.createItem(req, {});
 };
 
-export const deleteItem = async (id: string) => {
+export const deleteItem = (id: string) => {
   const req = new GetItemRequest();
   req.setId(id)
 
-  await todoServer.deleteItem(req, {});
-  itemStore.removeItem(id)
+  todoServer.deleteItem(req, {});
 
 }
 
-export const closeItem = async (id: string) => {
+export const closeItem = (id: string) => {
   const req = new GetItemRequest();
   req.setId(id)
 
-  const response = await todoServer.closeItem(req, {});
-  itemStore.updateItem(itemUnwrapper(response.getItem()))
+  todoServer.closeItem(req, {});
 }
 
-export const openItem = async (id: string) => {
+export const openItem = (id: string) => {
   const req = new GetItemRequest();
   req.setId(id)
 
-  const response = await todoServer.openItem(req, {});
-  itemStore.updateItem(itemUnwrapper(response.getItem()))
+  todoServer.openItem(req, {});
 }

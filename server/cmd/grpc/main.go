@@ -54,7 +54,9 @@ func main() {
 		grpcServer = grpc.NewServer()
 	}
 
-	todoPB.RegisterTodoServiceServer(grpcServer, &server.Server{DB: DB})
+	server := server.CreateServer(DB)
+
+	todoPB.RegisterTodoServiceServer(grpcServer, server)
 	reflection.Register(grpcServer)
 
 	go func() {
@@ -73,6 +75,7 @@ func main() {
 
 	// Stop the server
 	log.Println("stopping the server")
+	close(server.StreamChannel)
 	grpcServer.Stop()
 	log.Println("server stopped")
 }

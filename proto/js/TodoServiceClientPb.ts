@@ -28,7 +28,7 @@ export class TodoServiceClient {
                options?: null | { [index: string]: any; }) {
     if (!options) options = {};
     if (!credentials) credentials = {};
-    options['format'] = 'binary';
+    options['format'] = 'text';
 
     this.client_ = new grpcWeb.GrpcWebClientBase(options);
     this.hostname_ = hostname;
@@ -292,6 +292,28 @@ export class TodoServiceClient {
     request,
     metadata || {},
     this.methodDescriptorDeleteItem);
+  }
+
+  methodDescriptorgetItemsStream = new grpcWeb.MethodDescriptor(
+    '/server.TodoService/getItemsStream',
+    grpcWeb.MethodType.SERVER_STREAMING,
+    google_protobuf_empty_pb.Empty,
+    todo_pb.StreamResponse,
+    (request: google_protobuf_empty_pb.Empty) => {
+      return request.serializeBinary();
+    },
+    todo_pb.StreamResponse.deserializeBinary
+  );
+
+  getItemsStream(
+    request: google_protobuf_empty_pb.Empty,
+    metadata?: grpcWeb.Metadata): grpcWeb.ClientReadableStream<todo_pb.StreamResponse> {
+    return this.client_.serverStreaming(
+      this.hostname_ +
+        '/server.TodoService/getItemsStream',
+      request,
+      metadata || {},
+      this.methodDescriptorgetItemsStream);
   }
 
 }

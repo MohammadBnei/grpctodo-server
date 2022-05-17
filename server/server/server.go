@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/MohammadBnei/gRPC-web-tuto/server/domain"
 	"github.com/MohammadBnei/gRPC-web-tuto/server/todoPB"
@@ -18,11 +17,61 @@ import (
 //Server exposed
 type Server struct {
 	todoPB.UnimplementedTodoServiceServer
-	DB *gorm.DB
+	DB            *gorm.DB
+	StreamChannel chan *todoPB.StreamResponse
 }
 
 var blankItems = &todoPB.GetItemsResponse{}
 var blankItem = &todoPB.GetItemResponse{}
+
+func wrapItem(item *domain.Item) *todoPB.Item {
+	return &todoPB.Item{
+		Id:          fmt.Sprintf("%d", item.Id),
+		Title:       item.Title,
+		Description: item.Description,
+		Closed:      item.Closed,
+	}
+}
+
+func CreateServer(db *gorm.DB) *Server {
+	server := &Server{
+		DB:            db,
+		StreamChannel: make(chan *todoPB.StreamResponse),
+	}
+
+	return server
+}
+
+func (s *Server) GetItemsStream(_ *emptypb.Empty, srv todoPB.TodoService_GetItemsStreamServer) error {
+	fmt.Println("GetItemsStream() called")
+	go func() {
+		toRespItems := []*domain.Item{}
+
+		if result := s.DB.Find(&toRespItems); result.Error != nil {
+			fmt.Println(result.Error)
+			return
+		}
+
+		for _, v := range toRespItems {
+			fmt.Println("Sent ", v)
+			srv.Send(&todoPB.StreamResponse{
+				Type: todoPB.StreamResponse_CREATED,
+				Item: wrapItem(v),
+			})
+		}
+	}()
+	for {
+		select {
+		case event := <-s.StreamChannel:
+			if err := srv.Send(event); err != nil {
+				return err
+			}
+		case <-srv.Context().Done():
+			return nil
+
+		}
+	}
+}
 
 func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {
 	fmt.Println("GetItems() called")
@@ -45,12 +94,7 @@ func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetIte
 
 	respItems := []*todoPB.Item{}
 	for _, v := range toRespItems {
-		respItems = append(respItems, &todoPB.Item{
-			Id:          strconv.FormatUint(uint64(v.Id), 10),
-			Title:       v.Title,
-			Description: v.Description,
-			Closed:      v.Closed,
-		})
+		respItems = append(respItems, wrapItem(v))
 	}
 
 	return &todoPB.GetItemsResponse{
@@ -71,12 +115,7 @@ func (s *Server) GetItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB
 	fmt.Println(item)
 
 	return &todoPB.GetItemResponse{
-		Item: &todoPB.Item{
-			Id:          fmt.Sprintf("%d", item.Id),
-			Title:       item.Title,
-			Description: item.Description,
-			Closed:      item.Closed,
-		},
+		Item: wrapItem(&item),
 	}, nil
 
 }
@@ -100,6 +139,11 @@ func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*tod
 	// Delete that item
 	s.DB.Delete(&item)
 
+	s.StreamChannel <- &todoPB.StreamResponse{
+		Type: todoPB.StreamResponse_DELETED,
+		Item: wrapItem(&item),
+	}
+
 	return &todoPB.GeneralResponse{
 		Message: "Item deleted",
 	}, nil
@@ -114,19 +158,19 @@ func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*
 	if err != nil {
 		return blankResponse, err
 	}
-	
+
 	if result := s.DB.Create(&newItem); result.Error != nil {
 		fmt.Println(result.Error)
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
+	s.StreamChannel <- &todoPB.StreamResponse{
+		Type: todoPB.StreamResponse_CREATED,
+		Item: wrapItem(newItem),
+	}
+
 	return &todoPB.GetItemResponse{
-		Item: &todoPB.Item{
-			Id:          fmt.Sprintf("%d", newItem.Id),
-			Title:       newItem.Title,
-			Description: newItem.Description,
-			Closed:      newItem.Closed,
-		},
+		Item: wrapItem(newItem),
 	}, nil
 
 }
@@ -153,13 +197,13 @@ func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todo
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
+	s.StreamChannel <- &todoPB.StreamResponse{
+		Type: todoPB.StreamResponse_UPDATED,
+		Item: wrapItem(&item),
+	}
+
 	return &todoPB.GetItemResponse{
-		Item: &todoPB.Item{
-			Id:          fmt.Sprintf("%d", item.Id),
-			Title:       item.Title,
-			Description: item.Description,
-			Closed:      item.Closed,
-		},
+		Item: wrapItem(&item),
 	}, nil
 }
 func (s *Server) OpenItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GetItemResponse, error) {
@@ -184,12 +228,12 @@ func (s *Server) OpenItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoP
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
+	s.StreamChannel <- &todoPB.StreamResponse{
+		Type: todoPB.StreamResponse_UPDATED,
+		Item: wrapItem(&item),
+	}
+
 	return &todoPB.GetItemResponse{
-		Item: &todoPB.Item{
-			Id:          fmt.Sprintf("%d", item.Id),
-			Title:       item.Title,
-			Description: item.Description,
-			Closed:      item.Closed,
-		},
+		Item: wrapItem(&item),
 	}, nil
 }

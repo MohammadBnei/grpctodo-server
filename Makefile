@@ -16,4 +16,4 @@ js:
 	protoc -I=/gen/proto  --proto_path=/gen/proto todo.proto \
     --js_out=import_style=commonjs,binary:/out/js \
 	--plugin=protoc-gen-grpc-web=/bin/protoc-gen-grpc-web \
-    --grpc-web_out=import_style=typescript,mode=grpcweb:/out/js
+    --grpc-web_out=import_style=typescript,mode=grpcwebtext:/out/js
