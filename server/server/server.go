@@ -19,6 +19,7 @@ type Server struct {
 	todoPB.UnimplementedTodoServiceServer
 	DB            *gorm.DB
 	StreamChannel chan *todoPB.StreamResponse
+	Listeners     []chan *todoPB.StreamResponse
 }
 
 var blankItems = &todoPB.GetItemsResponse{}
@@ -34,43 +35,15 @@ func wrapItem(item *domain.Item) *todoPB.Item {
 }
 
 func CreateServer(db *gorm.DB) *Server {
+	var Listeners []chan *todoPB.StreamResponse
 	server := &Server{
 		DB:            db,
 		StreamChannel: make(chan *todoPB.StreamResponse),
+		Listeners:     Listeners,
 	}
 
+	go server.InitStreamingChannels()
 	return server
-}
-
-func (s *Server) GetItemsStream(_ *emptypb.Empty, srv todoPB.TodoService_GetItemsStreamServer) error {
-	fmt.Println("GetItemsStream() called")
-	go func() {
-		toRespItems := []*domain.Item{}
-
-		if result := s.DB.Find(&toRespItems); result.Error != nil {
-			fmt.Println(result.Error)
-			return
-		}
-
-		for _, v := range toRespItems {
-			fmt.Println("Sent ", v)
-			srv.Send(&todoPB.StreamResponse{
-				Type: todoPB.StreamResponse_CREATED,
-				Item: wrapItem(v),
-			})
-		}
-	}()
-	for {
-		select {
-		case event := <-s.StreamChannel:
-			if err := srv.Send(event); err != nil {
-				return err
-			}
-		case <-srv.Context().Done():
-			return nil
-
-		}
-	}
 }
 
 func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {

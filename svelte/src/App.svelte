@@ -12,7 +12,7 @@
 </script>
 
 <div class="hero min-h-screen bg-base-200">
-  <div class="w-screen grid grid-cols-[1fr_auto_1fr] place-items-center">
+  <div class="w-screen grid lg:grid-cols-[1fr_auto_1fr] place-items-center">
     <div class="flex flex-wrap justify-center ">
       {#each $itemStore.filter(({ closed }) => !closed) as item (item.id)}
         <Item {item} />
