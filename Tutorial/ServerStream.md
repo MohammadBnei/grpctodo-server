@@ -1,0 +1,1 @@
+With our stream stubs generated, we can define how and when we will send response to the client. We are going to make use of go channels, as it is a particularly convenient way to pass data around.
