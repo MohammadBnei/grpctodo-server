@@ -49,8 +49,10 @@ func CreateServer(db *gorm.DB) *Server {
 }
 
 func (s *Server) Stop() {
+	s.mut.Lock()
 	// TODO: Send all stream request AND stop
 	close(s.streamChannel)
+	s.mut.Unlock()
 }
 
 func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {
@@ -92,7 +94,6 @@ func (s *Server) GetItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB
 		fmt.Println(result.Error)
 		return blankItem, status.Error(codes.Internal, result.Error.Error())
 	}
-	fmt.Println(item)
 
 	return &todoPB.GetItemResponse{
 		Item: wrapItem(&item),

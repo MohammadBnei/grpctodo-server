@@ -12,7 +12,6 @@ func (s *Server) InitStreamingChannels() {
 
 	for event := range s.streamChannel {
 		s.mut.Lock()
-		fmt.Println(event, s.listeners)
 		for _, l := range s.listeners {
 			go func(l chan *todoPB.StreamResponse, event *todoPB.StreamResponse) {
 				l <- event
