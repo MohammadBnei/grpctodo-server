@@ -8,10 +8,10 @@ package todoPB
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -23,12 +23,13 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TodoServiceClient interface {
-	GetItems(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error)
+	GetItems(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error)
 	GetItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
 	CreateItem(ctx context.Context, in *CreateItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
 	CloseItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
 	OpenItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
 	DeleteItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GeneralResponse, error)
+	GetItemsStream(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (TodoService_GetItemsStreamClient, error)
 }
 
 type todoServiceClient struct {
@@ -39,7 +40,7 @@ func NewTodoServiceClient(cc grpc.ClientConnInterface) TodoServiceClient {
 	return &todoServiceClient{cc}
 }
 
-func (c *todoServiceClient) GetItems(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error) {
+func (c *todoServiceClient) GetItems(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetItemsResponse, error) {
 	out := new(GetItemsResponse)
 	err := c.cc.Invoke(ctx, "/server.TodoService/GetItems", in, out, opts...)
 	if err != nil {
@@ -93,16 +94,49 @@ func (c *todoServiceClient) DeleteItem(ctx context.Context, in *GetItemRequest, 
 	return out, nil
 }
 
+func (c *todoServiceClient) GetItemsStream(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (TodoService_GetItemsStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TodoService_ServiceDesc.Streams[0], "/server.TodoService/getItemsStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &todoServiceGetItemsStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type TodoService_GetItemsStreamClient interface {
+	Recv() (*StreamResponse, error)
+	grpc.ClientStream
+}
+
+type todoServiceGetItemsStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *todoServiceGetItemsStreamClient) Recv() (*StreamResponse, error) {
+	m := new(StreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // TodoServiceServer is the server API for TodoService service.
 // All implementations must embed UnimplementedTodoServiceServer
 // for forward compatibility
 type TodoServiceServer interface {
-	GetItems(context.Context, *empty.Empty) (*GetItemsResponse, error)
+	GetItems(context.Context, *emptypb.Empty) (*GetItemsResponse, error)
 	GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
 	CreateItem(context.Context, *CreateItemRequest) (*GetItemResponse, error)
 	CloseItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
 	OpenItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
 	DeleteItem(context.Context, *GetItemRequest) (*GeneralResponse, error)
+	GetItemsStream(*emptypb.Empty, TodoService_GetItemsStreamServer) error
 	mustEmbedUnimplementedTodoServiceServer()
 }
 
@@ -110,7 +144,7 @@ type TodoServiceServer interface {
 type UnimplementedTodoServiceServer struct {
 }
 
-func (UnimplementedTodoServiceServer) GetItems(context.Context, *empty.Empty) (*GetItemsResponse, error) {
+func (UnimplementedTodoServiceServer) GetItems(context.Context, *emptypb.Empty) (*GetItemsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetItems not implemented")
 }
 func (UnimplementedTodoServiceServer) GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error) {
@@ -128,6 +162,9 @@ func (UnimplementedTodoServiceServer) OpenItem(context.Context, *GetItemRequest)
 func (UnimplementedTodoServiceServer) DeleteItem(context.Context, *GetItemRequest) (*GeneralResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteItem not implemented")
 }
+func (UnimplementedTodoServiceServer) GetItemsStream(*emptypb.Empty, TodoService_GetItemsStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetItemsStream not implemented")
+}
 func (UnimplementedTodoServiceServer) mustEmbedUnimplementedTodoServiceServer() {}
 
 // UnsafeTodoServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -142,7 +179,7 @@ func RegisterTodoServiceServer(s grpc.ServiceRegistrar, srv TodoServiceServer) {
 }
 
 func _TodoService_GetItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -154,7 +191,7 @@ func _TodoService_GetItems_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/server.TodoService/GetItems",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TodoServiceServer).GetItems(ctx, req.(*empty.Empty))
+		return srv.(TodoServiceServer).GetItems(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -249,6 +286,27 @@ func _TodoService_DeleteItem_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TodoService_GetItemsStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(emptypb.Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(TodoServiceServer).GetItemsStream(m, &todoServiceGetItemsStreamServer{stream})
+}
+
+type TodoService_GetItemsStreamServer interface {
+	Send(*StreamResponse) error
+	grpc.ServerStream
+}
+
+type todoServiceGetItemsStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *todoServiceGetItemsStreamServer) Send(m *StreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // TodoService_ServiceDesc is the grpc.ServiceDesc for TodoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -281,6 +339,12 @@ var TodoService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TodoService_DeleteItem_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "getItemsStream",
+			Handler:       _TodoService_GetItemsStream_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "todo.proto",
 }

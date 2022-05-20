@@ -39,6 +39,16 @@ message GeneralResponse {
     string message = 1;
 }
 
+message StreamResponse {
+    enum TYPE {
+        CREATED = 0;
+        DELETED = 1;
+        UPDATED = 2;
+    }
+    TYPE type = 4;
+    Item item = 5;
+}
+
 service TodoService {
 
     rpc GetItems(google.protobuf.Empty) returns (GetItemsResponse) {};
@@ -52,5 +62,7 @@ service TodoService {
     rpc OpenItem(GetItemRequest) returns (GetItemResponse) {};
 
     rpc DeleteItem(GetItemRequest) returns (GeneralResponse) {};
+
+    rpc getItemsStream(google.protobuf.Empty) returns (stream StreamResponse);
     
 }

@@ -147,3 +147,33 @@ export namespace GeneralResponse {
   }
 }
 
+export class StreamResponse extends jspb.Message {
+  getType(): StreamResponse.TYPE;
+  setType(value: StreamResponse.TYPE): StreamResponse;
+
+  getItem(): Item | undefined;
+  setItem(value?: Item): StreamResponse;
+  hasItem(): boolean;
+  clearItem(): StreamResponse;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamResponse): StreamResponse.AsObject;
+  static serializeBinaryToWriter(message: StreamResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamResponse;
+  static deserializeBinaryFromReader(message: StreamResponse, reader: jspb.BinaryReader): StreamResponse;
+}
+
+export namespace StreamResponse {
+  export type AsObject = {
+    type: StreamResponse.TYPE,
+    item?: Item.AsObject,
+  }
+
+  export enum TYPE { 
+    CREATED = 0,
+    DELETED = 1,
+    UPDATED = 2,
+  }
+}
+

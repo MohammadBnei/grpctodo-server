@@ -75,6 +75,16 @@ Postgres
 
 [TODO APP](/Tutorial/TodoApp.md)
 
+# Server Stream
+
+To test out more of the grpc possibilities, let's implement a server side streaming service. This will be used to update the view, and synchronize all the pages that are open on our todo app.
+
+[PROTO UPDATE](/Tutorial/StreamProto.md)
+
+[SERVER STREAM](/Tutorial/ServerStream.md)
+
+[CLIENT SIDE](/Tutorial/ClientStream.md)
+
 # Conclusion
 
 gRPC on the browser is now possible. It is a little complex to put in place, but once the foundation are set up it becomes a breeze to develop new functionalities, have a nice and secure bi-directionnal stream, backward and forward compatibility... 
