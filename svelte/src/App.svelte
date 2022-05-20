@@ -5,10 +5,7 @@
   import { getItems, itemStream } from "./service";
   import { itemStore } from "./store";
 
-  onMount(() => {
-    getItems();
-    return itemStream();
-  });
+  onMount(() => itemStream());
 </script>
 
 <div class="hero min-h-screen bg-base-200">

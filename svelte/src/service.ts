@@ -32,7 +32,6 @@ export const itemStream = () => {
   let stream = todoServer.getItemsStream(req, {})
   stream.on("data", function (response) {
     const [type, item] = [response.getType(), itemUnwrapper(response.getItem())]
-    console.log({ type, item })
     switch (type) {
       case StreamResponse.TYPE.CREATED:
         itemStore.addItem(item)

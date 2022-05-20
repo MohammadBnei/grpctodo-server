@@ -83,6 +83,7 @@ To test out more of the grpc possibilities, let's implement a server side stream
 
 [SERVER STREAM](/Tutorial/ServerStream.md)
 
+[CLIENT SIDE](/Tutorial/ClientStream.md)
 
 # Conclusion
 
