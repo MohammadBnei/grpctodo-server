@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/MohammadBnei/gRPC-web-tuto/server/domain"
 	"github.com/MohammadBnei/gRPC-web-tuto/server/todoPB"
@@ -18,8 +19,9 @@ import (
 type Server struct {
 	todoPB.UnimplementedTodoServiceServer
 	DB            *gorm.DB
-	StreamChannel chan *todoPB.StreamResponse
-	Listeners     []chan *todoPB.StreamResponse
+	streamChannel chan *todoPB.StreamResponse
+	listeners     []chan *todoPB.StreamResponse
+	mut           sync.Mutex
 }
 
 var blankItems = &todoPB.GetItemsResponse{}
@@ -35,15 +37,20 @@ func wrapItem(item *domain.Item) *todoPB.Item {
 }
 
 func CreateServer(db *gorm.DB) *Server {
-	var Listeners []chan *todoPB.StreamResponse
+	var listeners []chan *todoPB.StreamResponse
 	server := &Server{
 		DB:            db,
-		StreamChannel: make(chan *todoPB.StreamResponse),
-		Listeners:     Listeners,
+		streamChannel: make(chan *todoPB.StreamResponse, 200),
+		listeners:     listeners,
 	}
 
 	go server.InitStreamingChannels()
 	return server
+}
+
+func (s *Server) Stop() {
+	// TODO: Send all stream request AND stop
+	close(s.streamChannel)
 }
 
 func (s *Server) GetItems(ctx context.Context, r *emptypb.Empty) (*todoPB.GetItemsResponse, error) {
@@ -112,7 +119,7 @@ func (s *Server) DeleteItem(ctx context.Context, r *todoPB.GetItemRequest) (*tod
 	// Delete that item
 	s.DB.Delete(&item)
 
-	s.StreamChannel <- &todoPB.StreamResponse{
+	s.streamChannel <- &todoPB.StreamResponse{
 		Type: todoPB.StreamResponse_DELETED,
 		Item: wrapItem(&item),
 	}
@@ -137,7 +144,7 @@ func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
-	s.StreamChannel <- &todoPB.StreamResponse{
+	s.streamChannel <- &todoPB.StreamResponse{
 		Type: todoPB.StreamResponse_CREATED,
 		Item: wrapItem(newItem),
 	}
@@ -149,7 +156,7 @@ func (s *Server) CreateItem(ctx context.Context, r *todoPB.CreateItemRequest) (*
 }
 
 func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoPB.GetItemResponse, error) {
-	fmt.Println("DeleteItem() called")
+	fmt.Println("CloseItem() called")
 
 	blankResponse := &todoPB.GetItemResponse{}
 
@@ -170,7 +177,7 @@ func (s *Server) CloseItem(ctx context.Context, r *todoPB.GetItemRequest) (*todo
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
-	s.StreamChannel <- &todoPB.StreamResponse{
+	s.streamChannel <- &todoPB.StreamResponse{
 		Type: todoPB.StreamResponse_UPDATED,
 		Item: wrapItem(&item),
 	}
@@ -201,7 +208,7 @@ func (s *Server) OpenItem(ctx context.Context, r *todoPB.GetItemRequest) (*todoP
 		return blankResponse, status.Error(codes.Internal, result.Error.Error())
 	}
 
-	s.StreamChannel <- &todoPB.StreamResponse{
+	s.streamChannel <- &todoPB.StreamResponse{
 		Type: todoPB.StreamResponse_UPDATED,
 		Item: wrapItem(&item),
 	}

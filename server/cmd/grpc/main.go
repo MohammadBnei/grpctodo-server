@@ -75,7 +75,7 @@ func main() {
 
 	// Stop the server
 	log.Println("stopping the server")
-	close(server.StreamChannel)
+	server.Stop()
 	grpcServer.Stop()
 	log.Println("server stopped")
 }

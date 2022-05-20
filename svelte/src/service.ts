@@ -29,9 +29,10 @@ export const itemWrapper = ({ title, description, closed }: ItemDto) => {
 
 export const itemStream = () => {
   const req = new GetItemsRequest();
-  const stream = todoServer.getItemsStream(req, {})
+  let stream = todoServer.getItemsStream(req, {})
   stream.on("data", function (response) {
     const [type, item] = [response.getType(), itemUnwrapper(response.getItem())]
+    console.log({ type, item })
     switch (type) {
       case StreamResponse.TYPE.CREATED:
         itemStore.addItem(item)
@@ -46,6 +47,8 @@ export const itemStream = () => {
   });
 
   stream.on("error", (err) => console.log({ err }));
+  stream.on("end", () => stream = todoServer.getItemsStream(req, {}));
+  stream.on("status", (status) => console.log({ status }));
 
   return stream.cancel;
 }

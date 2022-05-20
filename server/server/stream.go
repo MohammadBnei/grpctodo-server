@@ -9,32 +9,32 @@ import (
 )
 
 func (s *Server) InitStreamingChannels() {
-	for {
-		select {
-		case event := <-s.StreamChannel:
-			for _, l := range s.Listeners {
-				fmt.Println(l, event)
+
+	for event := range s.streamChannel {
+		s.mut.Lock()
+		fmt.Println(event, s.listeners)
+		for _, l := range s.listeners {
+			go func(l chan *todoPB.StreamResponse, event *todoPB.StreamResponse) {
 				l <- event
-			}
+			}(l, event)
 		}
+		s.mut.Unlock()
 	}
 }
 
-func (s *Server) NewStreamClient(channel chan *todoPB.StreamResponse) error {
-	s.Listeners = append(s.Listeners, channel)
+func (s *Server) NewStreamClient(channel chan *todoPB.StreamResponse) func() error {
+	s.listeners = append(s.listeners, channel)
+	index := len(s.listeners) - 1
 
-	return nil
+	return func() error {
+		return s.RemoveStreamClient(index)
+	}
 }
 
-func (s *Server) RemoveStreamClient(channel chan *todoPB.StreamResponse) error {
-	var index int
-	for i, l := range s.Listeners {
-		if l == channel {
-			index = i
-			break
-		}
-	}
-	s.Listeners = append(s.Listeners[:index], s.Listeners[index+1:]...)
+func (s *Server) RemoveStreamClient(index int) error {
+	s.mut.Lock()
+	s.listeners = append(s.listeners[:index], s.listeners[index+1:]...)
+	s.mut.Unlock()
 	return nil
 }
 
@@ -57,8 +57,9 @@ func (s *Server) GetItemsStream(_ *emptypb.Empty, srv todoPB.TodoService_GetItem
 	}()
 
 	channel := make(chan *todoPB.StreamResponse)
-	s.NewStreamClient(channel)
-	defer s.RemoveStreamClient(channel)
+	removeStreamClient := s.NewStreamClient(channel)
+	defer removeStreamClient()
+
 	for {
 		select {
 		case event := <-channel:
